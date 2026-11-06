@@ -1,6 +1,7 @@
 /**
  * Inbox Database Queries
  * Combines articles, digests, video render jobs, and generated format outputs for the editorial workbench inbox.
+ * Resilient to pending migrations (backward-compatible).
  * System Layer: db
  */
 
@@ -35,9 +36,10 @@ export interface InboxArticleItem {
 }
 
 export async function getInboxArticlesForBrand(brandId: string): Promise<InboxArticleItem[]> {
+  // Use select("*") so missing columns during migrations do not trigger 400 Bad Request
   const { data: articles, error: articlesErr } = await supabase
     .from("articles")
-    .select("id, title, canonical_url, source_type, media_metadata, published_at, created_at, status")
+    .select("*")
     .eq("brand_id", brandId)
     .order("created_at", { ascending: false });
 
@@ -46,7 +48,7 @@ export async function getInboxArticlesForBrand(brandId: string): Promise<InboxAr
     return [];
   }
 
-  const articleIds = articles.map((a) => a.id);
+  const articleIds = articles.map((a: any) => a.id);
   if (articleIds.length === 0) return [];
 
   // Fetch all completed digests for these articles
@@ -63,12 +65,21 @@ export async function getInboxArticlesForBrand(brandId: string): Promise<InboxAr
     .in("article_id", articleIds)
     .order("created_at", { ascending: true });
 
-  // Fetch video render jobs for these articles
-  const { data: videoJobs } = await supabase
-    .from("video_render_jobs")
-    .select("article_id, status, progress_pct, stage_message, created_at")
-    .in("article_id", articleIds)
-    .order("created_at", { ascending: false });
+  // Fetch video render jobs safely (graceful fallback if table is not yet migrated)
+  let videoJobs: any[] = [];
+  try {
+    const { data: vjData, error: vjErr } = await supabase
+      .from("video_render_jobs")
+      .select("article_id, status, progress_pct, stage_message, created_at")
+      .in("article_id", articleIds)
+      .order("created_at", { ascending: false });
+
+    if (!vjErr && vjData) {
+      videoJobs = vjData;
+    }
+  } catch {
+    // Ignored if video_render_jobs table does not exist
+  }
 
   const digestMap = new Map<string, number>();
   for (const d of digests || []) {
@@ -90,8 +101,7 @@ export async function getInboxArticlesForBrand(brandId: string): Promise<InboxAr
   }
 
   const videoJobMap = new Map<string, VideoJobProgressInfo>();
-  for (const vj of videoJobs || []) {
-    // Keep most recent job per article
+  for (const vj of videoJobs) {
     if (!videoJobMap.has(vj.article_id)) {
       videoJobMap.set(vj.article_id, {
         status: vj.status,
@@ -101,7 +111,7 @@ export async function getInboxArticlesForBrand(brandId: string): Promise<InboxAr
     }
   }
 
-  return articles.map((a) => ({
+  return articles.map((a: any) => ({
     id: a.id,
     title: a.title,
     canonicalUrl: a.canonical_url,
