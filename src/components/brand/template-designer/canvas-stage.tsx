@@ -9,7 +9,14 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Stage, Layer, Rect, Text as KonvaText, Line, Transformer, Circle } from "react-konva";
 import type Konva from "konva";
-import { TemplateElement, TextElement, ShapeElement, ImageElement } from "@/render/template-schema";
+import {
+  TemplateElement,
+  TextElement,
+  ShapeElement,
+  ImageElement,
+  VideoElement,
+  CaptionsElement,
+} from "@/render/template-schema";
 import { BrandTheme } from "@/render/layout/resolve-slots";
 import { SnapLine } from "./types";
 import { calculateSnaps } from "./snap-calculator";
@@ -275,6 +282,104 @@ export function CanvasStage({
                   onDragEnd={(e) => handleDragEnd(img, e)}
                   onTransformEnd={(e) => handleTransformEnd(img, e)}
                 />
+              );
+            }
+
+            if (el.type === "video") {
+              const vid = el as VideoElement;
+              const isBlur = (vid.blur_px ?? 0) > 0;
+              return (
+                <React.Fragment key={vid.id}>
+                  <Rect
+                    ref={(node) => {
+                      if (node) shapeRefs.current.set(vid.id, node);
+                      else shapeRefs.current.delete(vid.id);
+                    }}
+                    id={vid.id}
+                    x={vid.x}
+                    y={vid.y}
+                    width={vid.width}
+                    height={vid.height}
+                    fill={isBlur ? "#18181b" : "#27272a"}
+                    stroke={isSelected ? "#2563eb" : isBlur ? "#3f3f46" : "#71717a"}
+                    strokeWidth={isSelected ? 3 : 1.5}
+                    cornerRadius={vid.border_radius || 0}
+                    opacity={vid.opacity ?? 1}
+                    draggable
+                    onClick={() => onSelect(vid.id)}
+                    onTap={() => onSelect(vid.id)}
+                    onDragMove={(e) => handleDragMove(vid, e)}
+                    onDragEnd={(e) => handleDragEnd(vid, e)}
+                    onTransformEnd={(e) => handleTransformEnd(vid, e)}
+                  />
+                  <KonvaText
+                    x={vid.x + 20}
+                    y={vid.y + vid.height / 2 - 14}
+                    width={vid.width - 40}
+                    text={
+                      isBlur
+                        ? `🎥 Blurred Video Background (${vid.blur_px}px blur)`
+                        : `🎬 Main Video Feed (${vid.framing_mode})`
+                    }
+                    fontSize={22}
+                    fontFamily="Inter, sans-serif"
+                    fontStyle="bold"
+                    fill={isBlur ? "#71717a" : "#f4f4f5"}
+                    align="center"
+                    listening={false}
+                  />
+                </React.Fragment>
+              );
+            }
+
+            if (el.type === "captions") {
+              const cap = el as CaptionsElement;
+              const displayText =
+                cap.uppercase !== false
+                  ? "THIS IS HOW ACTIVE KARAOKE CAPTIONS LOOK"
+                  : "This is how active karaoke captions look";
+
+              return (
+                <React.Fragment key={cap.id}>
+                  <Rect
+                    ref={(node) => {
+                      if (node) shapeRefs.current.set(cap.id, node);
+                      else shapeRefs.current.delete(cap.id);
+                    }}
+                    id={cap.id}
+                    x={cap.x}
+                    y={cap.y}
+                    width={cap.width}
+                    height={cap.height}
+                    fill="transparent"
+                    stroke={isSelected ? "#2563eb" : "rgba(255,255,255,0.2)"}
+                    strokeWidth={isSelected ? 2 : 1}
+                    dash={[6, 6]}
+                    draggable
+                    onClick={() => onSelect(cap.id)}
+                    onTap={() => onSelect(cap.id)}
+                    onDragMove={(e) => handleDragMove(cap, e)}
+                    onDragEnd={(e) => handleDragEnd(cap, e)}
+                    onTransformEnd={(e) => handleTransformEnd(cap, e)}
+                  />
+                  <KonvaText
+                    x={cap.x + 10}
+                    y={cap.y + 10}
+                    width={cap.width - 20}
+                    height={cap.height - 20}
+                    text={displayText}
+                    fontSize={cap.font_size}
+                    fontFamily={cap.font_family || "Anton"}
+                    fontStyle="bold"
+                    fill={cap.highlight_color || "#FFDE00"}
+                    stroke={cap.outline_color || "#000000"}
+                    strokeWidth={Math.min(cap.outline_width || 6, 8)}
+                    fillAfterStrokeEnabled
+                    align={cap.text_align || "center"}
+                    lineHeight={1.2}
+                    listening={false}
+                  />
+                </React.Fragment>
               );
             }
 

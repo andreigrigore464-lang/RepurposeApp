@@ -9,7 +9,7 @@ import { TemplateElement, TextElement } from "@/render/template-schema";
 export interface FriendlyLabel {
   title: string;
   category: string;
-  icon: "text" | "image" | "shape";
+  icon: "text" | "image" | "shape" | "video" | "captions";
 }
 
 const SLOT_LABEL_MAP: Record<string, { title: string; category: string }> = {
@@ -34,6 +34,11 @@ const SLOT_LABEL_MAP: Record<string, { title: string; category: string }> = {
   "closing_slide.summary": { title: "Synthesis Summary", category: "Bottom Line" },
   "closing_slide.call_to_action": { title: "Call to Action", category: "Outro Prompt" },
 
+  // Video Reel Slots
+  source_video: { title: "Video Feed", category: "Video Track" },
+  "clip.hook_title": { title: "Hook Headline", category: "Video Header" },
+  captions: { title: "Karaoke Captions", category: "Subtitles Track" },
+
   // Common Media Slots
   article_image: { title: "Article Image", category: "In-Article Photo" },
   "brand.logo": { title: "Brand Logo", category: "Publication Logo" },
@@ -55,6 +60,7 @@ const SAMPLE_TEXT_MAP: Record<string, string> = {
   "closing_slide.summary":
     "Synchronous waking defined industrial society, transforming personal sleep into collective coordination.",
   "closing_slide.call_to_action": "Read the full investigation at chronicle.example.com",
+  "clip.hook_title": "THE BIGGEST MISTAKE CREATORS MAKE",
 };
 
 export function getFriendlyLabel(element: TemplateElement): FriendlyLabel {
@@ -65,6 +71,23 @@ export function getFriendlyLabel(element: TemplateElement): FriendlyLabel {
       title: SLOT_LABEL_MAP[slot].title,
       category: SLOT_LABEL_MAP[slot].category,
       icon: element.type,
+    };
+  }
+
+  if (element.type === "video") {
+    const isBlur = (element as any).blur_px > 0;
+    return {
+      title: isBlur ? "Blurred Video Background" : "Main Video Track",
+      category: "Video Layer",
+      icon: "video",
+    };
+  }
+
+  if (element.type === "captions") {
+    return {
+      title: "Karaoke Subtitles",
+      category: "Captions Track",
+      icon: "captions",
     };
   }
 
@@ -107,4 +130,3 @@ export function getSampleText(textEl: TextElement): string {
 
   return "Sample Editorial Text";
 }
-

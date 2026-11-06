@@ -18,6 +18,7 @@ export default async function TemplatesPage() {
 
   const defaultCardTemplate = getDefaultTemplate("card");
   const defaultCarouselTemplate = getDefaultTemplate("carousel");
+  const defaultVideoReelTemplate = getDefaultTemplate("video-reel");
 
   return (
     <div className="space-y-6">
@@ -26,6 +27,7 @@ export default async function TemplatesPage() {
         brandKit={brandKit}
         defaultCardTemplate={defaultCardTemplate}
         defaultCarouselTemplate={defaultCarouselTemplate}
+        defaultVideoReelTemplate={defaultVideoReelTemplate}
       />
     </div>
   );

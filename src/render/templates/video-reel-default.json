@@ -1,0 +1,94 @@
+{
+  "id": "video-reel-default",
+  "name": "Classic Podcast Promo Reel",
+  "format": "video-reel",
+  "dimensions": {
+    "width": 1080,
+    "height": 1920
+  },
+  "pages": [
+    {
+      "page_index": 0,
+      "background": {
+        "color": "#09090b"
+      },
+      "elements": [
+        {
+          "id": "bg-video-blur",
+          "type": "video",
+          "slot": "source_video",
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920,
+          "framing_mode": "blurred_stack",
+          "blur_px": 55,
+          "brightness": 0.45,
+          "opacity": 1
+        },
+        {
+          "id": "main-video-feed",
+          "type": "video",
+          "slot": "source_video",
+          "x": 0,
+          "y": 550,
+          "width": 1080,
+          "height": 608,
+          "framing_mode": "ai_face_focus",
+          "zoom": 1,
+          "blur_px": 0,
+          "brightness": 1,
+          "border_radius": 0,
+          "opacity": 1
+        },
+        {
+          "id": "top-hook-banner",
+          "type": "shape",
+          "shape_type": "rect",
+          "x": 60,
+          "y": 140,
+          "width": 960,
+          "height": 160,
+          "fill": "#000000",
+          "border_radius": 16,
+          "opacity": 0.75
+        },
+        {
+          "id": "hook-title-text",
+          "type": "text",
+          "slot": "clip.hook_title",
+          "default_text": "THE BIGGEST MISTAKE CREATORS MAKE",
+          "x": 90,
+          "y": 165,
+          "width": 900,
+          "height": 110,
+          "font_family": "Anton",
+          "font_size": 48,
+          "font_weight": "bold",
+          "color": "#ffffff",
+          "text_align": "center",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "karaoke-captions",
+          "type": "captions",
+          "slot": "captions",
+          "x": 60,
+          "y": 1280,
+          "width": 960,
+          "height": 280,
+          "font_family": "Anton",
+          "font_size": 84,
+          "primary_color": "#FFFFFF",
+          "highlight_color": "#FFDE00",
+          "outline_color": "#000000",
+          "outline_width": 8,
+          "shadow_depth": 4,
+          "words_per_phrase": 4,
+          "uppercase": true,
+          "text_align": "center"
+        }
+      ]
+    }
+  ]
+}

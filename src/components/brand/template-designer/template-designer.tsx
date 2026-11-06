@@ -11,7 +11,7 @@ import dynamic from "next/dynamic";
 import { Template, TemplateElement } from "@/render/template-schema";
 import { BrandTheme } from "@/render/layout/resolve-slots";
 import { UserTemplateRecord } from "@/db/queries-brand-kit";
-import { ArchetypeId, ArchetypeConfig, AvailableSlot, ASPECT_RATIOS } from "./types";
+import { ArchetypeId, ArchetypeConfig, AvailableSlot, AspectRatioType, ASPECT_RATIOS } from "./types";
 import { SlotPalette } from "./slot-palette";
 import { LayersPanel } from "./layers-panel";
 import { ElementPropertiesPanel } from "./element-properties-panel";
@@ -73,9 +73,10 @@ export function TemplateDesigner({
   onSave,
   onBack,
 }: TemplateDesignerProps): React.JSX.Element {
+  const isVideoReel = templateRecord.format === "video-reel";
   const [templateName, setTemplateName] = useState(templateRecord.name);
-  const [aspectRatio, setAspectRatio] = useState<"square" | "portrait">(
-    templateRecord.aspectRatio || "square"
+  const [aspectRatio, setAspectRatio] = useState<AspectRatioType>(
+    isVideoReel ? "vertical" : (templateRecord.aspectRatio as AspectRatioType) || "square"
   );
   const [template, setTemplate] = useState<Template>(templateRecord.template);
   const [activePageIndex, setActivePageIndex] = useState<number>(0);
@@ -159,7 +160,43 @@ export function TemplateDesigner({
     const newId = `${slotDef.slot}-${Date.now().toString().slice(-4)}`;
     let newElement: TemplateElement;
 
-    if (slotDef.type === "text") {
+    if (slotDef.type === "video") {
+      const isBlur = slotDef.slot === "bg_video_blur";
+      newElement = {
+        id: newId,
+        type: "video",
+        slot: "source_video",
+        x: 0,
+        y: isBlur ? 0 : 550,
+        width: slotDef.defaultWidth,
+        height: slotDef.defaultHeight,
+        framing_mode: isBlur ? "blurred_stack" : "ai_face_focus",
+        blur_px: isBlur ? 55 : 0,
+        brightness: isBlur ? 0.45 : 1,
+        border_radius: 0,
+        opacity: 1,
+      };
+    } else if (slotDef.type === "captions") {
+      newElement = {
+        id: newId,
+        type: "captions",
+        slot: "captions",
+        x: 60,
+        y: 1280,
+        width: slotDef.defaultWidth,
+        height: slotDef.defaultHeight,
+        font_family: "Anton",
+        font_size: slotDef.defaultFontSize || 84,
+        primary_color: "#FFFFFF",
+        highlight_color: "#FFDE00",
+        outline_color: "#000000",
+        outline_width: 8,
+        shadow_depth: 4,
+        words_per_phrase: 4,
+        uppercase: true,
+        text_align: "center",
+      };
+    } else if (slotDef.type === "text") {
       newElement = {
         id: newId,
         type: "text",
@@ -242,6 +279,7 @@ export function TemplateDesigner({
 
   // Determine active archetype ID for slot palette
   const getActiveArchetypeId = (): ArchetypeId => {
+    if (templateRecord.format === "video-reel") return "video-reel";
     if (templateRecord.format === "card") return "card";
     if (activePageIndex === 0) return "carousel-cover";
     if (activePageIndex === 1) return "carousel-body";
@@ -305,28 +343,34 @@ export function TemplateDesigner({
         {/* Right: Aspect Ratio, Active Checkbox & Save */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Aspect Ratio Switcher */}
-          <div className="flex items-center gap-1 border border-app-border rounded-md bg-app-subtle/30 p-1">
-            <button
-              onClick={() => setAspectRatio("square")}
-              className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                aspectRatio === "square"
-                  ? "bg-app-surface text-app-ink font-semibold shadow-xs"
-                  : "text-app-muted hover:text-app-ink"
-              }`}
-            >
-              1:1 Square
-            </button>
-            <button
-              onClick={() => setAspectRatio("portrait")}
-              className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                aspectRatio === "portrait"
-                  ? "bg-app-surface text-app-ink font-semibold shadow-xs"
-                  : "text-app-muted hover:text-app-ink"
-              }`}
-            >
-              4:5 Portrait
-            </button>
-          </div>
+          {isVideoReel ? (
+            <div className="flex items-center gap-1 border border-app-border rounded-md bg-app-subtle/50 px-2.5 py-1 text-[11px] font-semibold text-app-ink">
+              <span>🎬 9:16 Vertical Reel (1080×1920)</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 border border-app-border rounded-md bg-app-subtle/30 p-1">
+              <button
+                onClick={() => setAspectRatio("square")}
+                className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                  aspectRatio === "square"
+                    ? "bg-app-surface text-app-ink font-semibold shadow-xs"
+                    : "text-app-muted hover:text-app-ink"
+                }`}
+              >
+                1:1 Square
+              </button>
+              <button
+                onClick={() => setAspectRatio("portrait")}
+                className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                  aspectRatio === "portrait"
+                    ? "bg-app-surface text-app-ink font-semibold shadow-xs"
+                    : "text-app-muted hover:text-app-ink"
+                }`}
+              >
+                4:5 Portrait
+              </button>
+            </div>
+          )}
 
           {/* Save Button */}
           <button
@@ -459,7 +503,9 @@ export function TemplateDesigner({
               selectedId={selectedElementId}
               backgroundColor={activePage.background.color || brandTheme.backgroundColor}
               theme={brandTheme}
-              scale={aspectRatio === "square" ? 0.48 : 0.40}
+              scale={
+                aspectRatio === "vertical" ? 0.32 : aspectRatio === "square" ? 0.48 : 0.40
+              }
               onSelect={(id) => setSelectedElementId(id)}
               onChange={handleUpdateElements}
             />

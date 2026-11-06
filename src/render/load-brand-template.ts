@@ -12,8 +12,11 @@ import { getBrandTemplates } from "@/db/queries-brand-kit";
 /**
  * Loads default template from disk as fallback
  */
-export function getDefaultTemplate(format: "card" | "carousel"): Template {
-  const fileName = format === "card" ? "card-default.json" : "carousel-default.json";
+export function getDefaultTemplate(format: "card" | "carousel" | "video-reel"): Template {
+  let fileName = "card-default.json";
+  if (format === "carousel") fileName = "carousel-default.json";
+  if (format === "video-reel") fileName = "video-reel-default.json";
+
   const filePath = path.resolve(process.cwd(), `src/render/templates/${fileName}`);
   const raw = fs.readFileSync(filePath, "utf8");
   return TemplateSchema.parse(JSON.parse(raw));
@@ -25,7 +28,7 @@ export function getDefaultTemplate(format: "card" | "carousel"): Template {
  */
 export async function getBrandTemplate(
   brandId: string,
-  format: "card" | "carousel",
+  format: "card" | "carousel" | "video-reel",
   preferredTemplateId?: string
 ): Promise<Template> {
   try {

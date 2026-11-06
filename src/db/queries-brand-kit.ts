@@ -12,7 +12,7 @@ export interface UserTemplateRecord {
   name: string;
   format: "card" | "carousel" | "video-reel";
   isActive?: boolean;
-  aspectRatio: "square" | "portrait";
+  aspectRatio: "square" | "portrait" | "vertical";
   updatedAt: string;
   template: any;
 }
