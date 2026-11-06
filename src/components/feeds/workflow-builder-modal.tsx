@@ -2,13 +2,15 @@
 
 /**
  * Workflow Builder Modal
- * Dialog overlay for creating or editing publishing workflows, assigning visual templates, and detecting feeds.
+ * Dialog overlay for creating or editing publication workflows (Articles & YouTube Channels).
  * System Layer: ui / feeds
  */
 
 import React, { useState, useEffect } from "react";
 import { WorkflowRecord, UserTemplateRecord } from "@/db/queries-brand-kit";
 import { DiscoveredFeed } from "@/pipeline/1-ingest/discover-rss-feeds";
+import { WorkflowYoutubeFields } from "@/components/feeds/workflow-youtube-fields";
+import { WorkflowArticleFields } from "@/components/feeds/workflow-article-fields";
 
 interface WorkflowBuilderModalProps {
   isOpen: boolean;
@@ -17,13 +19,6 @@ interface WorkflowBuilderModalProps {
   onSave: (workflow: WorkflowRecord) => Promise<void>;
   onClose: () => void;
 }
-
-const AVAILABLE_FORMATS = [
-  { id: "text-post", label: "Text Post", description: "Single thought post" },
-  { id: "thread", label: "Thread", description: "Multi-part breakdown" },
-  { id: "card", label: "Graphic Card", description: "Visual quote or stat slide" },
-  { id: "carousel", label: "Carousel Deck", description: "Multi-slide PDF deck" },
-];
 
 const POLL_INTERVALS = [
   { value: 30, label: "Every 30 minutes" },
@@ -40,9 +35,12 @@ export function WorkflowBuilderModal({
   onSave,
   onClose,
 }: WorkflowBuilderModalProps): React.JSX.Element | null {
+  const [sourceType, setSourceType] = useState<"article" | "youtube">("article");
   const [name, setName] = useState("");
   const [feedUrl, setFeedUrl] = useState("");
   const [pollInterval, setPollInterval] = useState(60);
+
+  // Article formats & templates
   const [cardTemplateId, setCardTemplateId] = useState<string | undefined>(undefined);
   const [carouselTemplateId, setCarouselTemplateId] = useState<string | undefined>(undefined);
   const [enabledFormats, setEnabledFormats] = useState<string[]>([
@@ -51,6 +49,13 @@ export function WorkflowBuilderModal({
     "card",
     "carousel",
   ]);
+
+  // YouTube reel options
+  const [videoReelTemplateId, setVideoReelTemplateId] = useState<string | undefined>(undefined);
+  const [targetClipsCount, setTargetClipsCount] = useState<number>(3);
+  const [targetDuration, setTargetDuration] = useState<"15-30" | "30-60" | "60-90">("30-60");
+  const [language, setLanguage] = useState<string>("");
+  const [vocabularyHint, setVocabularyHint] = useState<string>("");
 
   // Feed discovery state
   const [discovering, setDiscovering] = useState(false);
@@ -63,22 +68,34 @@ export function WorkflowBuilderModal({
 
   useEffect(() => {
     if (editingWorkflow) {
+      setSourceType(editingWorkflow.sourceType || "article");
       setName(editingWorkflow.name);
       setFeedUrl(editingWorkflow.feedUrl || "");
       setPollInterval(editingWorkflow.pollIntervalMinutes || 60);
       setCardTemplateId(editingWorkflow.cardTemplateId);
       setCarouselTemplateId(editingWorkflow.carouselTemplateId);
+      setVideoReelTemplateId(editingWorkflow.videoReelTemplateId);
+      setTargetClipsCount(editingWorkflow.targetClipsCount || 3);
+      setTargetDuration(editingWorkflow.targetDuration || "30-60");
+      setLanguage(editingWorkflow.language || "");
+      setVocabularyHint(editingWorkflow.vocabularyHint || "");
       setEnabledFormats(
         editingWorkflow.enabledFormats && editingWorkflow.enabledFormats.length > 0
           ? editingWorkflow.enabledFormats
           : ["text-post", "thread", "card", "carousel"]
       );
     } else {
+      setSourceType("article");
       setName("");
       setFeedUrl("");
       setPollInterval(60);
       setCardTemplateId(cardTemplates[0]?.id);
       setCarouselTemplateId(carouselTemplates[0]?.id);
+      setVideoReelTemplateId(undefined);
+      setTargetClipsCount(3);
+      setTargetDuration("30-60");
+      setLanguage("");
+      setVocabularyHint("");
       setEnabledFormats(["text-post", "thread", "card", "carousel"]);
     }
     setDiscoveredFeeds([]);
@@ -104,13 +121,16 @@ export function WorkflowBuilderModal({
 
       if (data.feeds && data.feeds.length > 0) {
         setDiscoveredFeeds(data.feeds);
-        // Pre-fill name if empty
         if (!name.trim()) {
-          setName(data.feeds[0].title || "Publication Workflow");
+          setName(data.feeds[0].title || (sourceType === "youtube" ? "YouTube Workflow" : "Publication Workflow"));
         }
         setFeedUrl(data.feeds[0].feedUrl);
       } else {
-        setError("No feeds found at this URL. You can enter the exact XML link directly.");
+        setError(
+          sourceType === "youtube"
+            ? "No YouTube channel feed detected. Please enter a valid handle (e.g. @ChannelName) or channel URL."
+            : "No feeds found at this URL. You can enter the exact XML link directly."
+        );
       }
     } catch (err: any) {
       setError(err.message || "Failed to detect feeds.");
@@ -147,11 +167,17 @@ export function WorkflowBuilderModal({
         id: editingWorkflow?.id || `wf-${Date.now()}`,
         name: name.trim(),
         isActive: editingWorkflow ? editingWorkflow.isActive : true,
+        sourceType,
         feedUrl: feedUrl.trim() || undefined,
         pollIntervalMinutes: pollInterval,
-        enabledFormats,
-        cardTemplateId: cardTemplateId || undefined,
-        carouselTemplateId: carouselTemplateId || undefined,
+        enabledFormats: sourceType === "youtube" ? ["video-reel"] : enabledFormats,
+        cardTemplateId: sourceType === "article" ? cardTemplateId || undefined : undefined,
+        carouselTemplateId: sourceType === "article" ? carouselTemplateId || undefined : undefined,
+        videoReelTemplateId: sourceType === "youtube" ? videoReelTemplateId : undefined,
+        targetClipsCount: sourceType === "youtube" ? targetClipsCount : undefined,
+        targetDuration: sourceType === "youtube" ? targetDuration : undefined,
+        language: sourceType === "youtube" ? language.trim() || undefined : undefined,
+        vocabularyHint: sourceType === "youtube" ? vocabularyHint.trim() || undefined : undefined,
         createdAt: editingWorkflow?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -175,7 +201,7 @@ export function WorkflowBuilderModal({
               {editingWorkflow ? "Edit Publishing Workflow" : "New Publishing Workflow"}
             </h2>
             <p className="text-xs text-app-muted mt-0.5">
-              Configure publication feed, visual templates, and output formats.
+              Configure publication source, recurring poll frequency, and visual templates.
             </p>
           </div>
           <button
@@ -187,13 +213,46 @@ export function WorkflowBuilderModal({
           </button>
         </div>
 
-        {/* Scrollable Body */}
+        {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
           {error && (
             <div className="rounded-md bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">
               {error}
             </div>
           )}
+
+          {/* Source Type Selector */}
+          <div>
+            <label className="text-xs font-semibold text-app-ink block mb-1.5">
+              Workflow Source Type
+            </label>
+            <div className="flex rounded-lg border border-app-border p-1 bg-app-subtle/40 max-w-sm">
+              <button
+                type="button"
+                onClick={() => setSourceType("article")}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                  sourceType === "article"
+                    ? "bg-app-surface text-app-ink shadow-xs font-bold"
+                    : "text-app-muted hover:text-app-ink"
+                }`}
+              >
+                <span>📰</span>
+                <span>Article / RSS Feed</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSourceType("youtube")}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                  sourceType === "youtube"
+                    ? "bg-app-surface text-app-ink shadow-xs font-bold"
+                    : "text-app-muted hover:text-app-ink"
+                }`}
+              >
+                <span>🔴</span>
+                <span>YouTube Channel</span>
+              </button>
+            </div>
+          </div>
 
           {/* Workflow Name */}
           <div>
@@ -202,7 +261,7 @@ export function WorkflowBuilderModal({
             </label>
             <input
               type="text"
-              placeholder="e.g. Tech & Product Daily, Culture Breakdown"
+              placeholder={sourceType === "youtube" ? "e.g. UPB Drive Podcast Clips" : "e.g. Tech & Product Daily"}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -210,22 +269,28 @@ export function WorkflowBuilderModal({
             />
           </div>
 
-          {/* Source Feed & Discovery */}
+          {/* Feed URL & Auto-Discovery */}
           <div>
             <label className="text-xs font-semibold text-app-ink block mb-1">
-              Source Publication URL (Optional)
+              {sourceType === "youtube" ? "YouTube Channel Handle or Link" : "Source Publication URL (Optional)"}
             </label>
             <p className="text-[11px] text-app-muted mb-2">
-              Enter any publication website (e.g. bbc.com/culture, techcrunch.com) or direct RSS link.
+              {sourceType === "youtube"
+                ? "Enter channel handle (e.g. @UPBDrive), full channel link, or any video from the channel."
+                : "Enter website (e.g. bbc.com/culture, techcrunch.com) or direct RSS link."}
             </p>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="https://techcrunch.com or https://example.com/feed"
+                placeholder={
+                  sourceType === "youtube"
+                    ? "@UPBDrive or https://youtube.com/@UPBDrive"
+                    : "https://techcrunch.com or https://example.com/feed"
+                }
                 value={feedUrl}
                 onChange={(e) => setFeedUrl(e.target.value)}
                 disabled={discovering}
-                className="flex-1 text-xs rounded-md border border-app-border bg-app-surface px-3 py-2 text-app-ink shadow-xs focus:outline-none focus:ring-1 focus:ring-app-ink"
+                className="flex-1 text-xs rounded-md border border-app-border bg-app-surface px-3 py-2 text-app-ink shadow-xs font-mono"
               />
               <button
                 type="button"
@@ -237,7 +302,6 @@ export function WorkflowBuilderModal({
               </button>
             </div>
 
-            {/* Discovered Feeds Preview */}
             {discoveredFeeds.length > 0 && (
               <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-medium text-emerald-900">
@@ -251,7 +315,7 @@ export function WorkflowBuilderModal({
             )}
           </div>
 
-          {/* Poll Interval */}
+          {/* Poll Rate */}
           {feedUrl.trim() && (
             <div>
               <label className="text-xs font-semibold text-app-ink block mb-1">
@@ -260,7 +324,7 @@ export function WorkflowBuilderModal({
               <select
                 value={pollInterval}
                 onChange={(e) => setPollInterval(Number(e.target.value))}
-                className="w-full text-xs rounded-md border border-app-border bg-app-surface px-3 py-2 text-app-ink shadow-xs focus:outline-none focus:ring-1 focus:ring-app-ink"
+                className="w-full text-xs rounded-md border border-app-border bg-app-surface px-3 py-2 text-app-ink shadow-xs"
               >
                 {POLL_INTERVALS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -271,82 +335,33 @@ export function WorkflowBuilderModal({
             </div>
           )}
 
-          {/* Assigned Visual Templates */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-app-border/60">
-            <div>
-              <label className="text-xs font-semibold text-app-ink block mb-1">
-                Graphic Card Template
-              </label>
-              <select
-                value={cardTemplateId || "default"}
-                onChange={(e) =>
-                  setCardTemplateId(e.target.value === "default" ? undefined : e.target.value)
-                }
-                className="w-full text-xs rounded-md border border-app-border bg-app-surface px-3 py-2 text-app-ink shadow-xs"
-              >
-                <option value="default">Default Editorial Card</option>
-                {cardTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-app-ink block mb-1">
-                Carousel Deck Template
-              </label>
-              <select
-                value={carouselTemplateId || "default"}
-                onChange={(e) =>
-                  setCarouselTemplateId(e.target.value === "default" ? undefined : e.target.value)
-                }
-                className="w-full text-xs rounded-md border border-app-border bg-app-surface px-3 py-2 text-app-ink shadow-xs"
-              >
-                <option value="default">Default Editorial Deck</option>
-                {carouselTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Enabled Pipeline Formats */}
-          <div className="pt-2 border-t border-app-border/60">
-            <label className="text-xs font-semibold text-app-ink block mb-2 font-mono uppercase tracking-wider text-app-muted">
-              Enabled Output Formats
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {AVAILABLE_FORMATS.map((fmt) => {
-                const active = enabledFormats.includes(fmt.id);
-                return (
-                  <button
-                    key={fmt.id}
-                    type="button"
-                    onClick={() => toggleFormat(fmt.id)}
-                    className={`text-left p-3 rounded-lg border transition-all ${
-                      active
-                        ? "border-app-ink bg-app-subtle/80 font-medium"
-                        : "border-app-border bg-app-surface opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-xs text-app-ink">{fmt.label}</span>
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          active ? "bg-emerald-500" : "bg-zinc-300"
-                        }`}
-                      />
-                    </div>
-                    <span className="text-[11px] text-app-muted">{fmt.description}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {/* Source-Specific Config */}
+          {sourceType === "youtube" ? (
+            <WorkflowYoutubeFields
+              templates={templates}
+              videoReelTemplateId={videoReelTemplateId}
+              onSelectVideoReelTemplateId={setVideoReelTemplateId}
+              clipsCount={targetClipsCount}
+              onChangeClipsCount={setTargetClipsCount}
+              targetDuration={targetDuration}
+              onChangeTargetDuration={setTargetDuration}
+              language={language}
+              onChangeLanguage={setLanguage}
+              vocabularyHint={vocabularyHint}
+              onChangeVocabularyHint={setVocabularyHint}
+            />
+          ) : (
+            <WorkflowArticleFields
+              cardTemplates={cardTemplates}
+              carouselTemplates={carouselTemplates}
+              cardTemplateId={cardTemplateId}
+              onSelectCardTemplateId={setCardTemplateId}
+              carouselTemplateId={carouselTemplateId}
+              onSelectCarouselTemplateId={setCarouselTemplateId}
+              enabledFormats={enabledFormats}
+              onToggleFormat={toggleFormat}
+            />
+          )}
 
           {/* Footer Actions */}
           <div className="pt-4 border-t border-app-border flex items-center justify-end gap-2">
@@ -371,4 +386,3 @@ export function WorkflowBuilderModal({
     </div>
   );
 }
-

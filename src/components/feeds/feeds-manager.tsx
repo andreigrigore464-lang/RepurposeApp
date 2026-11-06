@@ -203,6 +203,7 @@ export function FeedsManager({
             {workflows.map((wf) => {
               const cardTpl = templates.find((t) => t.id === wf.cardTemplateId);
               const carouselTpl = templates.find((t) => t.id === wf.carouselTemplateId);
+              const videoReelTpl = templates.find((t) => t.id === wf.videoReelTemplateId);
 
               return (
                 <WorkflowCard
@@ -210,6 +211,7 @@ export function FeedsManager({
                   workflow={wf}
                   cardTemplate={cardTpl}
                   carouselTemplate={carouselTpl}
+                  videoReelTemplate={videoReelTpl}
                   onToggleActive={handleToggleActive}
                   onEdit={handleOpenEdit}
                   onDuplicate={handleDuplicate}

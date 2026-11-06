@@ -18,6 +18,8 @@ export interface ArticleRecord {
   raw_html: string | null;
   clean_text: string;
   in_article_images: string[];
+  source_type?: string;
+  media_metadata?: Record<string, unknown> | null;
   status: string;
   error_message: string | null;
   created_at: string;
@@ -54,6 +56,8 @@ export async function insertArticle(params: {
   rawHtml?: string;
   cleanText: string;
   inArticleImages: string[];
+  sourceType?: string;
+  mediaMetadata?: Record<string, unknown>;
 }): Promise<ArticleRecord> {
   const { data, error } = await supabase
     .from("articles")
@@ -68,6 +72,8 @@ export async function insertArticle(params: {
       raw_html: params.rawHtml || null,
       clean_text: params.cleanText,
       in_article_images: params.inArticleImages,
+      source_type: params.sourceType || "article",
+      media_metadata: params.mediaMetadata || {},
       status: "ingested",
     })
     .select()
