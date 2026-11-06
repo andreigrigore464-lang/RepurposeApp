@@ -115,5 +115,12 @@ This document tracks technical decisions, justifications, and package additions 
 - **Decision:** Extend `format_outputs.status` (`scheduled`, `published`) and store scheduling timestamps (`scheduled_at`, `scheduled_has_time`, `published_at`) inside `format_outputs.slots_data`. Store the 1-time auto-posting trust poll vote inside `brand_kits.custom_templates.autoPostTrustVote`.
 - **Consequences:** Zero database downtime or manual SQL push needed for the MVP while keeping schema documentation fully recorded in `supabase/migrations/00004_add_calendar_scheduling.sql`.
 
+### ADR 020: Cloudflare R2 S3-Compatible Client for Ephemeral Media Storage
+- **Context:** Long-form video repurposing (YouTube audio/video and user video uploads up to 2.5GB) requires high-capacity object storage with presigned upload URLs and zero egress bandwidth fees.
+- **Decision:** Use Cloudflare R2 via `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`. Wrap all operations behind a pluggable interface in `src/storage/video-storage.ts` with local filesystem fallback for offline development.
+- **Consequences:** Client browsers upload directly to R2 via presigned URLs, bypassing Vercel/Next.js payload limits completely. Raw video files are deleted immediately after rendering the 3 short 9:16 reels, minimizing storage costs.
+
+
+
 
 

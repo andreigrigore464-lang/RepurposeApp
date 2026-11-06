@@ -7,6 +7,7 @@ import { textPostFormat } from "./text-post";
 import { threadFormat } from "./thread";
 import { cardFormat } from "./card";
 import { carouselFormat } from "./carousel";
+import { videoReelFormat } from "./video-reel";
 import { FormatDefinition } from "../types";
 
 export const ALL_FORMATS: FormatDefinition[] = [
@@ -14,5 +15,5 @@ export const ALL_FORMATS: FormatDefinition[] = [
   threadFormat,
   cardFormat,
   carouselFormat,
+  videoReelFormat,
 ];
-

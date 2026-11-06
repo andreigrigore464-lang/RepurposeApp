@@ -10,12 +10,15 @@ export const MATRIX_DEFINITION: MatrixDefinition = {
   inputToFormats: {
     "rss": ["text-post", "thread", "card", "carousel"],
     "manual-url": ["text-post", "thread", "card", "carousel"],
+    "youtube": ["video-reel"],
+    "video-upload": ["video-reel"],
   },
   formatToPlatforms: {
     "text-post": ["linkedin", "x", "instagram", "facebook", "threads"],
     "thread": ["x", "threads"],
     "card": ["linkedin", "x", "instagram", "facebook", "threads"],
     "carousel": ["linkedin", "instagram"],
+    "video-reel": ["instagram", "x", "linkedin", "facebook", "threads"],
   },
 };
 

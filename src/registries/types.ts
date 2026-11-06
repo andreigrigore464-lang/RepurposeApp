@@ -34,7 +34,7 @@ export const FormatDefinitionSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   description: z.string().min(1),
-  mediaType: z.enum(["text-only", "single-image", "multi-image-or-pdf"]),
+  mediaType: z.enum(["text-only", "single-image", "multi-image-or-pdf", "video"]),
   slotSchema: z.instanceof(z.ZodObject),
   promptTemplateGuidance: z.string().min(1),
 });

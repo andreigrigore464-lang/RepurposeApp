@@ -10,7 +10,7 @@ import { supabase } from "./client";
 export interface UserTemplateRecord {
   id: string;
   name: string;
-  format: "card" | "carousel";
+  format: "card" | "carousel" | "video-reel";
   isActive?: boolean;
   aspectRatio: "square" | "portrait";
   updatedAt: string;
@@ -21,6 +21,7 @@ export interface WorkflowRecord {
   id: string;
   name: string;
   isActive: boolean;
+  sourceType?: "article" | "youtube";
   feedId?: string;
   feedUrl?: string;
   feedTitle?: string;
@@ -28,6 +29,11 @@ export interface WorkflowRecord {
   enabledFormats: string[];
   cardTemplateId?: string;
   carouselTemplateId?: string;
+  videoReelTemplateId?: string;
+  targetClipsCount?: number;
+  targetDuration?: "15-30" | "30-60" | "60-90";
+  language?: string;
+  vocabularyHint?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +42,7 @@ export interface WorkflowRuleConfig {
   enabledFormats: string[];
   cardTemplateId?: string;
   carouselTemplateId?: string;
+  videoReelTemplateId?: string;
 }
 
 export interface FeedWorkflowOverride {
