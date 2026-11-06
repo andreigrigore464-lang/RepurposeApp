@@ -18,6 +18,7 @@ import { Template } from "@/render/template-schema";
 import { ALL_PLATFORMS } from "@/registries/platforms/all-platforms";
 import { GroundingProvenancePanel } from "./grounding-provenance-panel";
 import { ScheduleModal } from "./schedule-modal";
+import { VideoReelPlayer } from "./video-reel-player";
 
 const RenderInBrowser = dynamic(
   () => import("@/render/render-in-browser").then((mod) => mod.RenderInBrowser),
@@ -170,10 +171,18 @@ export function FormatWorkbench({
 
       {/* Main Grid: Left Editor & Preview, Right Grounding Provenance */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Side: Platform Switcher, Copy Editor & Live Visuals */}
+        {/* Left Side: Video Reel Player OR Written Platform Switcher & Canvas */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Platform Variant Switcher */}
-          <div className="bg-app-surface border border-app-border rounded-lg p-2 shadow-xs flex flex-wrap gap-1">
+          {formatOutput.format_kind === "video-reel" ? (
+            <VideoReelPlayer
+              formatOutput={formatOutput}
+              article={article}
+              onOpenSchedule={() => setIsScheduleModalOpen(true)}
+            />
+          ) : (
+            <>
+              {/* Platform Variant Switcher */}
+              <div className="bg-app-surface border border-app-border rounded-lg p-2 shadow-xs flex flex-wrap gap-1">
             {platformVariants.map((variant) => {
               const isSelected = variant.platform_id === selectedPlatform;
               return (
@@ -320,6 +329,8 @@ export function FormatWorkbench({
                 )}
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
 
