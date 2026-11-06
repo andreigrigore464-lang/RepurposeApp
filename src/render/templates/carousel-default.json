@@ -1,0 +1,233 @@
+{
+  "id": "carousel-default",
+  "name": "Classic Editorial Carousel",
+  "format": "carousel",
+  "dimensions": {
+    "width": 1080,
+    "height": 1350
+  },
+  "pages": [
+    {
+      "page_index": 0,
+      "background": {
+        "color": "#18181b"
+      },
+      "elements": [
+        {
+          "id": "cover-kicker",
+          "type": "text",
+          "slot": "cover_slide.kicker",
+          "default_text": "EDITORIAL DECK",
+          "x": 90,
+          "y": 140,
+          "width": 900,
+          "height": 40,
+          "font_family": "Inter",
+          "font_size": 22,
+          "font_weight": "700",
+          "color": "#3b82f6"
+        },
+        {
+          "id": "cover-title",
+          "type": "text",
+          "slot": "cover_slide.title",
+          "default_text": "",
+          "x": 90,
+          "y": 280,
+          "width": 900,
+          "height": 450,
+          "font_family": "Playfair Display",
+          "font_size": 64,
+          "font_weight": "bold",
+          "line_height": 1.25,
+          "color": "#ffffff",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "cover-subtitle",
+          "type": "text",
+          "slot": "cover_slide.subtitle",
+          "default_text": "",
+          "x": 90,
+          "y": 780,
+          "width": 900,
+          "height": 220,
+          "font_family": "Inter",
+          "font_size": 32,
+          "line_height": 1.4,
+          "color": "#a1a1aa",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "cover-swipe-indicator",
+          "type": "text",
+          "default_text": "SWIPE TO READ →",
+          "x": 90,
+          "y": 1200,
+          "width": 400,
+          "height": 40,
+          "font_family": "Inter",
+          "font_size": 20,
+          "font_weight": "700",
+          "color": "#3b82f6"
+        }
+      ]
+    },
+    {
+      "page_index": 1,
+      "background": {
+        "color": "#ffffff"
+      },
+      "elements": [
+        {
+          "id": "body-badge",
+          "type": "text",
+          "slot": "body_slide.badge",
+          "default_text": "",
+          "x": 90,
+          "y": 120,
+          "width": 400,
+          "height": 36,
+          "font_family": "Inter",
+          "font_size": 20,
+          "font_weight": "700",
+          "color": "#2563eb"
+        },
+        {
+          "id": "body-title",
+          "type": "text",
+          "slot": "body_slide.title",
+          "default_text": "",
+          "x": 90,
+          "y": 220,
+          "width": 900,
+          "height": 240,
+          "font_family": "Playfair Display",
+          "font_size": 52,
+          "font_weight": "bold",
+          "line_height": 1.25,
+          "color": "#18181b",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "body-text",
+          "type": "text",
+          "slot": "body_slide.body",
+          "default_text": "",
+          "x": 90,
+          "y": 500,
+          "width": 900,
+          "height": 550,
+          "font_family": "Inter",
+          "font_size": 34,
+          "line_height": 1.5,
+          "color": "#3f3f46",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "body-divider",
+          "type": "shape",
+          "shape_type": "rect",
+          "x": 90,
+          "y": 1180,
+          "width": 900,
+          "height": 2,
+          "fill": "#e4e4e7"
+        },
+        {
+          "id": "body-footer",
+          "type": "text",
+          "slot": "attribution",
+          "default_text": "",
+          "x": 90,
+          "y": 1210,
+          "width": 900,
+          "height": 40,
+          "font_family": "Inter",
+          "font_size": 20,
+          "font_weight": "600",
+          "color": "#a1a1aa"
+        }
+      ]
+    },
+    {
+      "page_index": 2,
+      "background": {
+        "color": "#f4f4f5"
+      },
+      "elements": [
+        {
+          "id": "closing-kicker",
+          "type": "text",
+          "default_text": "CONCLUSION",
+          "x": 90,
+          "y": 160,
+          "width": 900,
+          "height": 40,
+          "font_family": "Inter",
+          "font_size": 22,
+          "font_weight": "700",
+          "color": "#2563eb"
+        },
+        {
+          "id": "closing-title",
+          "type": "text",
+          "slot": "closing_slide.title",
+          "default_text": "",
+          "x": 90,
+          "y": 260,
+          "width": 900,
+          "height": 280,
+          "font_family": "Playfair Display",
+          "font_size": 56,
+          "font_weight": "bold",
+          "line_height": 1.25,
+          "color": "#18181b",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "closing-summary",
+          "type": "text",
+          "slot": "closing_slide.summary",
+          "default_text": "",
+          "x": 90,
+          "y": 580,
+          "width": 900,
+          "height": 340,
+          "font_family": "Inter",
+          "font_size": 32,
+          "line_height": 1.5,
+          "color": "#52525b",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "closing-cta-box",
+          "type": "shape",
+          "shape_type": "rect",
+          "x": 90,
+          "y": 980,
+          "width": 900,
+          "height": 120,
+          "fill": "#18181b",
+          "border_radius": 10
+        },
+        {
+          "id": "closing-cta-text",
+          "type": "text",
+          "slot": "closing_slide.call_to_action",
+          "default_text": "",
+          "x": 130,
+          "y": 1022,
+          "width": 820,
+          "height": 40,
+          "font_family": "Inter",
+          "font_size": 28,
+          "font_weight": "bold",
+          "color": "#ffffff",
+          "text_align": "center"
+        }
+      ]
+    }
+  ]
+}
+

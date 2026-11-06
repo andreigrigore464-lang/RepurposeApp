@@ -1,0 +1,47 @@
+{
+  "name": "repurpose-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "inngest:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
+    "db:verify": "tsx --env-file=.env.local src/db/verify-connection.ts",
+    "registries:verify": "tsx src/registries/verify-registries.ts",
+    "ingest:verify": "tsx --env-file=.env.local src/pipeline/1-ingest/verify-ingest.ts",
+    "digest:verify": "tsx --env-file=.env.local src/pipeline/2-digest/verify-digest.ts",
+    "formats:verify": "tsx --env-file=.env.local src/pipeline/3-format/verify-formats.ts",
+    "adapters:verify": "tsx --env-file=.env.local src/pipeline/4-adapt/verify-adapters.ts",
+    "render:verify": "tsx --env-file=.env.local src/render/verify-rendering.ts",
+    "waitlist:verify": "tsx --env-file=.env.local src/db/verify-waitlist.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^2.32.0",
+    "@supabase/supabase-js": "^2.48.1",
+    "canvas": "^3.2.3",
+    "cheerio": "^1.2.0",
+    "fast-xml-parser": "^5.11.2",
+    "inngest": "^3.31.0",
+    "konva": "^10.9.1",
+    "next": "^15.1.7",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-konva": "^19.0.10",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "autoprefixer": "^10.4.20",
+    "pg": "^8.23.1",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.3"
+  }
+}

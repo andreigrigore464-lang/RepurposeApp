@@ -1,0 +1,277 @@
+"use client";
+
+/**
+ * Element Properties Inspector Panel
+ * Allows fine-tuning coordinates, typography size, text alignment, colors, and layer z-index.
+ * System Layer: ui / brand / template-designer
+ */
+
+import React from "react";
+import { TemplateElement, TextElement, ShapeElement } from "@/render/template-schema";
+import { BrandTheme } from "@/render/layout/resolve-slots";
+import { getFriendlyLabel } from "./layer-utils";
+
+interface ElementPropertiesPanelProps {
+  element: TemplateElement | null;
+  theme: BrandTheme;
+  onChange: (updated: TemplateElement) => void;
+  onDelete: (id: string) => void;
+  onBringForward?: (id: string) => void;
+  onSendBackward?: (id: string) => void;
+  onBringToFront?: (id: string) => void;
+  onSendToBack?: (id: string) => void;
+}
+
+export function ElementPropertiesPanel({
+  element,
+  theme,
+  onChange,
+  onDelete,
+  onBringForward,
+  onSendBackward,
+  onBringToFront,
+  onSendToBack,
+}: ElementPropertiesPanelProps): React.JSX.Element {
+  if (!element) {
+    return (
+      <div className="bg-app-surface border border-app-border rounded-lg p-5 shadow-sm text-center">
+        <p className="text-xs font-medium text-app-ink">No Element Selected</p>
+        <p className="text-[11px] text-app-muted mt-1">
+          Click any element on the canvas or in the Layers list to inspect coordinates and styling.
+        </p>
+      </div>
+    );
+  }
+
+  const isText = element.type === "text";
+  const isShape = element.type === "shape";
+  const textEl = isText ? (element as TextElement) : null;
+  const shapeEl = isShape ? (element as ShapeElement) : null;
+
+  const { title, category } = getFriendlyLabel(element);
+
+  return (
+    <div className="bg-app-surface border border-app-border rounded-lg p-5 shadow-sm space-y-5">
+      {/* Element Header with Human-Friendly Name */}
+      <div className="flex items-center justify-between border-b border-app-border pb-3">
+        <div>
+          <h3 className="text-xs font-bold text-app-ink">
+            {title}
+          </h3>
+          <p className="text-[10px] text-app-muted mt-0.5 flex items-center gap-1.5 font-mono">
+            <span>{category}</span>
+            <span>·</span>
+            <span className="opacity-60">{element.id}</span>
+          </p>
+        </div>
+        <button
+          onClick={() => onDelete(element.id)}
+          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+          title="Remove element from canvas"
+        >
+          Remove
+        </button>
+      </div>
+
+      {/* Layer Stacking Order Controls (Front / Back) */}
+      <div>
+        <label className="block text-[11px] font-semibold text-app-muted uppercase tracking-wider mb-2">
+          Layer Arrangement
+        </label>
+        <div className="grid grid-cols-4 gap-1.5 text-[11px]">
+          <button
+            type="button"
+            onClick={() => onBringToFront?.(element.id)}
+            title="Bring to absolute front"
+            className="flex flex-col items-center justify-center p-1.5 rounded border border-app-border hover:bg-app-subtle text-app-ink transition-colors"
+          >
+            <span className="font-bold">⇈</span>
+            <span className="text-[9px] text-app-muted">To Front</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onBringForward?.(element.id)}
+            title="Bring one layer forward"
+            className="flex flex-col items-center justify-center p-1.5 rounded border border-app-border hover:bg-app-subtle text-app-ink transition-colors"
+          >
+            <span className="font-bold">↑</span>
+            <span className="text-[9px] text-app-muted">Forward</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onSendBackward?.(element.id)}
+            title="Send one layer backward"
+            className="flex flex-col items-center justify-center p-1.5 rounded border border-app-border hover:bg-app-subtle text-app-ink transition-colors"
+          >
+            <span className="font-bold">↓</span>
+            <span className="text-[9px] text-app-muted">Backward</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onSendToBack?.(element.id)}
+            title="Send to absolute back"
+            className="flex flex-col items-center justify-center p-1.5 rounded border border-app-border hover:bg-app-subtle text-app-ink transition-colors"
+          >
+            <span className="font-bold">⇊</span>
+            <span className="text-[9px] text-app-muted">To Back</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Geometry: X, Y, Width, Height */}
+      <div>
+        <label className="block text-[11px] font-semibold text-app-muted uppercase tracking-wider mb-2">
+          Position & Dimensions
+        </label>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span className="text-[10px] text-app-muted block mb-1">X Position</span>
+            <input
+              type="number"
+              value={element.x}
+              onChange={(e) =>
+                onChange({ ...element, x: parseInt(e.target.value) || 0 })
+              }
+              className="w-full rounded border border-app-border bg-app-subtle/40 px-2.5 py-1 text-app-ink text-xs font-mono"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] text-app-muted block mb-1">Y Position</span>
+            <input
+              type="number"
+              value={element.y}
+              onChange={(e) =>
+                onChange({ ...element, y: parseInt(e.target.value) || 0 })
+              }
+              className="w-full rounded border border-app-border bg-app-subtle/40 px-2.5 py-1 text-app-ink text-xs font-mono"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] text-app-muted block mb-1">Width</span>
+            <input
+              type="number"
+              value={element.width}
+              onChange={(e) =>
+                onChange({ ...element, width: Math.max(20, parseInt(e.target.value) || 20) })
+              }
+              className="w-full rounded border border-app-border bg-app-subtle/40 px-2.5 py-1 text-app-ink text-xs font-mono"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] text-app-muted block mb-1">Height</span>
+            <input
+              type="number"
+              value={element.height}
+              onChange={(e) =>
+                onChange({ ...element, height: Math.max(20, parseInt(e.target.value) || 20) })
+              }
+              className="w-full rounded border border-app-border bg-app-subtle/40 px-2.5 py-1 text-app-ink text-xs font-mono"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Text Attributes */}
+      {isText && textEl && (
+        <div className="space-y-3 border-t border-app-border pt-3">
+          <label className="block text-[11px] font-semibold text-app-muted uppercase tracking-wider">
+            Typography
+          </label>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span className="text-[10px] text-app-muted block mb-1">Font Size</span>
+              <input
+                type="number"
+                value={textEl.font_size}
+                onChange={(e) =>
+                  onChange({ ...textEl, font_size: Math.max(10, parseInt(e.target.value) || 12) })
+                }
+                className="w-full rounded border border-app-border bg-app-subtle/40 px-2.5 py-1 text-app-ink text-xs font-mono"
+              />
+            </div>
+            <div>
+              <span className="text-[10px] text-app-muted block mb-1">Alignment</span>
+              <select
+                value={textEl.text_align || "left"}
+                onChange={(e) =>
+                  onChange({ ...textEl, text_align: e.target.value as any })
+                }
+                className="w-full rounded border border-app-border bg-app-subtle/40 px-2.5 py-1 text-app-ink text-xs"
+              >
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Color Attributes */}
+      <div className="border-t border-app-border pt-3 space-y-2">
+        <label className="block text-[11px] font-semibold text-app-muted uppercase tracking-wider">
+          Quick Brand Colors
+        </label>
+        <div className="grid grid-cols-4 gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (isText && textEl) onChange({ ...textEl, color: theme.primaryColor });
+              if (isShape && shapeEl) onChange({ ...shapeEl, fill: theme.primaryColor });
+            }}
+            className="flex flex-col items-center p-1.5 rounded border border-app-border hover:bg-app-subtle text-[9px] text-app-muted"
+          >
+            <span
+              className="h-4 w-4 rounded-full border border-black/10 mb-1"
+              style={{ backgroundColor: theme.primaryColor }}
+            />
+            Primary
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (isText && textEl) onChange({ ...textEl, color: theme.secondaryColor });
+              if (isShape && shapeEl) onChange({ ...shapeEl, fill: theme.secondaryColor });
+            }}
+            className="flex flex-col items-center p-1.5 rounded border border-app-border hover:bg-app-subtle text-[9px] text-app-muted"
+          >
+            <span
+              className="h-4 w-4 rounded-full border border-black/10 mb-1"
+              style={{ backgroundColor: theme.secondaryColor }}
+            />
+            Secondary
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (isText && textEl) onChange({ ...textEl, color: theme.textColor });
+              if (isShape && shapeEl) onChange({ ...shapeEl, fill: theme.textColor });
+            }}
+            className="flex flex-col items-center p-1.5 rounded border border-app-border hover:bg-app-subtle text-[9px] text-app-muted"
+          >
+            <span
+              className="h-4 w-4 rounded-full border border-black/10 mb-1"
+              style={{ backgroundColor: theme.textColor }}
+            />
+            Text
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (isText && textEl) onChange({ ...textEl, color: theme.backgroundColor });
+              if (isShape && shapeEl) onChange({ ...shapeEl, fill: theme.backgroundColor });
+            }}
+            className="flex flex-col items-center p-1.5 rounded border border-app-border hover:bg-app-subtle text-[9px] text-app-muted"
+          >
+            <span
+              className="h-4 w-4 rounded-full border border-black/10 mb-1"
+              style={{ backgroundColor: theme.backgroundColor }}
+            />
+            Background
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

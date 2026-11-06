@@ -1,0 +1,114 @@
+{
+  "id": "card-default",
+  "name": "Classic Editorial Card",
+  "format": "card",
+  "dimensions": {
+    "width": 1080,
+    "height": 1080
+  },
+  "pages": [
+    {
+      "page_index": 0,
+      "background": {
+        "color": "#ffffff"
+      },
+      "elements": [
+        {
+          "id": "kicker-bg",
+          "type": "shape",
+          "shape_type": "rect",
+          "x": 80,
+          "y": 80,
+          "width": 260,
+          "height": 44,
+          "fill": "#f4f4f5",
+          "border_radius": 6
+        },
+        {
+          "id": "kicker-text",
+          "type": "text",
+          "slot": "kicker",
+          "default_text": "KEY INSIGHT",
+          "x": 96,
+          "y": 92,
+          "width": 240,
+          "height": 30,
+          "font_family": "Inter",
+          "font_size": 18,
+          "font_weight": "600",
+          "color": "#2563eb"
+        },
+        {
+          "id": "headline-text",
+          "type": "text",
+          "slot": "headline",
+          "default_text": "",
+          "x": 80,
+          "y": 180,
+          "width": 920,
+          "height": 360,
+          "font_family": "Playfair Display",
+          "font_size": 52,
+          "font_weight": "bold",
+          "line_height": 1.25,
+          "color": "#18181b",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "stat-callout",
+          "type": "text",
+          "slot": "stat_callout",
+          "default_text": "",
+          "x": 80,
+          "y": 560,
+          "width": 400,
+          "height": 90,
+          "font_family": "Inter",
+          "font_size": 76,
+          "font_weight": "800",
+          "color": "#2563eb"
+        },
+        {
+          "id": "subhead-text",
+          "type": "text",
+          "slot": "subhead",
+          "default_text": "",
+          "x": 80,
+          "y": 670,
+          "width": 920,
+          "height": 180,
+          "font_family": "Inter",
+          "font_size": 28,
+          "line_height": 1.4,
+          "color": "#71717a",
+          "auto_shrink_font": true
+        },
+        {
+          "id": "divider-line",
+          "type": "shape",
+          "shape_type": "rect",
+          "x": 80,
+          "y": 930,
+          "width": 920,
+          "height": 2,
+          "fill": "#e4e4e7"
+        },
+        {
+          "id": "attribution-text",
+          "type": "text",
+          "slot": "attribution",
+          "default_text": "",
+          "x": 80,
+          "y": 960,
+          "width": 920,
+          "height": 40,
+          "font_family": "Inter",
+          "font_size": 22,
+          "font_weight": "600",
+          "color": "#a1a1aa"
+        }
+      ]
+    }
+  ]
+}
+
