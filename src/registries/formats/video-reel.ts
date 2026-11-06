@@ -30,3 +30,4 @@ export const videoReelFormat: FormatDefinition = {
   slotSchema: VideoReelSlotSchema,
   promptTemplateGuidance: "Select standalone, compelling spoken segments with a clear hook and conclusion for vertical reels.",
 };
+

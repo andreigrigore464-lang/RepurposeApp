@@ -7,10 +7,10 @@
  */
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { WorkflowRecord, UserTemplateRecord } from "@/db/queries-brand-kit";
 import { FeedRecord } from "@/db/queries-feeds";
-import { QuickRepurposeBar } from "./quick-repurpose-bar";
 import { WorkflowCard } from "./workflow-card";
 import { WorkflowBuilderModal } from "./workflow-builder-modal";
 
@@ -157,12 +157,19 @@ export function FeedsManager({
         </button>
       </div>
 
-      {/* 1. Quick Repurpose Top Bar */}
-      <QuickRepurposeBar
-        workflows={workflows.filter((w) => w.isActive)}
-        templates={templates}
-        onArticleRepurposed={() => router.refresh()}
-      />
+      {/* 1. One-Time Studio Callout */}
+      <div className="rounded-lg border border-app-border bg-app-subtle/30 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-app-muted">
+          <span className="text-sm">⚡</span>
+          <span>Looking to repurpose a single article, video file, or YouTube link?</span>
+        </div>
+        <Link
+          href="/repurpose"
+          className="rounded border border-app-border bg-app-surface px-3 py-1 text-xs font-semibold text-app-ink hover:bg-app-subtle transition-colors shadow-2xs text-center"
+        >
+          Open Repurpose Studio →
+        </Link>
+      </div>
 
       {/* 2. Workflows Section */}
       <div className="space-y-4">

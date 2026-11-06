@@ -30,3 +30,4 @@ CREATE INDEX IF NOT EXISTS idx_video_render_jobs_article_id ON video_render_jobs
 CREATE INDEX IF NOT EXISTS idx_video_render_jobs_brand_id ON video_render_jobs(brand_id);
 
 COMMENT ON TABLE video_render_jobs IS 'Asynchronous queue and progress tracker for Python video worker (whisper, hook detection, ffmpeg)';
+

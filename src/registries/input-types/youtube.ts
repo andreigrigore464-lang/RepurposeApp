@@ -12,3 +12,4 @@ export const youtubeInput: InputTypeDefinition = {
   requiresUrl: true,
   supportsPolling: true,
 };
+

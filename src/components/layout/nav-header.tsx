@@ -37,6 +37,7 @@ export function NavHeader(): React.JSX.Element {
 
   const navItems = [
     { label: "Drafts Inbox", href: "/inbox" },
+    { label: "Repurpose Studio", href: "/repurpose" },
     { label: "Workflow", href: "/feeds" },
     { label: "Templates", href: "/templates" },
     { label: "Calendar", href: "/calendar", badge: dueTodayCount },
