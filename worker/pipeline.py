@@ -99,39 +99,58 @@ def run_job_pipeline(job: dict, on_progress=None):
 
         extract_audio_for_transcription(raw_video_path, wav_path)
 
-        whisper_model_name = "medium" if DEFAULT_DEVICE == "cuda" else "base"
-        print(f"[pipeline] Loading Whisper model '{whisper_model_name}' on {DEFAULT_DEVICE} ({DEFAULT_COMPUTE_TYPE})...")
-        try:
-            model = WhisperModel(whisper_model_name, device=DEFAULT_DEVICE, compute_type=DEFAULT_COMPUTE_TYPE)
-        except Exception as e:
-            if DEFAULT_DEVICE == "cuda":
-                print(f"[pipeline] CUDA acceleration failed ({e}). Falling back to CPU with 'base' model...")
-                model = WhisperModel("base", device="cpu", compute_type="int8")
-            else:
-                raise e
-
         audio_data, sr = sf.read(wav_path)
-        segments_gen, info = model.transcribe(
-            audio_data,
-            language=language or None,
-            initial_prompt=vocab_hint or None,
-            word_timestamps=True
-        )
-
         all_words = []
         segments = []
-        for seg in segments_gen:
-            segments.append({
-                "start": seg.start,
-                "end": seg.end,
-                "text": seg.text,
-            })
-            for w in seg.words:
-                all_words.append({
-                    "word": w.word,
-                    "start": w.start,
-                    "end": w.end,
+
+        try:
+            whisper_model_name = "medium" if DEFAULT_DEVICE == "cuda" else "base"
+            print(f"[pipeline] Loading Whisper model '{whisper_model_name}' on {DEFAULT_DEVICE} ({DEFAULT_COMPUTE_TYPE})...")
+            model = WhisperModel(whisper_model_name, device=DEFAULT_DEVICE, compute_type=DEFAULT_COMPUTE_TYPE)
+            segments_gen, info = model.transcribe(
+                audio_data,
+                language=language or None,
+                initial_prompt=vocab_hint or None,
+                word_timestamps=True
+            )
+            for seg in segments_gen:
+                segments.append({
+                    "start": seg.start,
+                    "end": seg.end,
+                    "text": seg.text,
                 })
+                for w in seg.words:
+                    all_words.append({
+                        "word": w.word,
+                        "start": w.start,
+                        "end": w.end,
+                    })
+        except Exception as e:
+            if DEFAULT_DEVICE == "cuda":
+                print(f"[pipeline] GPU inference encountered library error ({e}). Falling back to CPU with 'base' model...")
+                model = WhisperModel("base", device="cpu", compute_type="int8")
+                all_words = []
+                segments = []
+                segments_gen, info = model.transcribe(
+                    audio_data,
+                    language=language or None,
+                    initial_prompt=vocab_hint or None,
+                    word_timestamps=True
+                )
+                for seg in segments_gen:
+                    segments.append({
+                        "start": seg.start,
+                        "end": seg.end,
+                        "text": seg.text,
+                    })
+                    for w in seg.words:
+                        all_words.append({
+                            "word": w.word,
+                            "start": w.start,
+                            "end": w.end,
+                        })
+            else:
+                raise e
 
         print(f"[pipeline] Transcription complete: {len(segments)} sentences, {len(all_words)} words.")
 

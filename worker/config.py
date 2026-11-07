@@ -34,6 +34,41 @@ def load_env_local():
 
 load_env_local()
 
+def preload_cuda_libraries():
+    """Forces loading of nvidia cublas and cudnn shared libraries into the process global symbol table."""
+    import sys
+    if not sys.platform.startswith("linux"):
+        return
+
+    import ctypes
+    import glob
+
+    try:
+        import site
+        dirs_to_check = []
+        for p in site.getsitepackages():
+            dirs_to_check.append(os.path.join(p, "nvidia", "cublas", "lib"))
+            dirs_to_check.append(os.path.join(p, "nvidia", "cudnn", "lib"))
+
+        dirs_to_check.extend(glob.glob("/usr/local/lib/python*/dist-packages/nvidia/cublas/lib"))
+        dirs_to_check.extend(glob.glob("/usr/local/lib/python*/dist-packages/nvidia/cudnn/lib"))
+
+        for lib_dir in dirs_to_check:
+            if os.path.exists(lib_dir):
+                cur_ld = os.environ.get("LD_LIBRARY_PATH", "")
+                if lib_dir not in cur_ld:
+                    os.environ["LD_LIBRARY_PATH"] = f"{lib_dir}:{cur_ld}"
+
+                for so in sorted(glob.glob(os.path.join(lib_dir, "*.so*"))):
+                    try:
+                        ctypes.CDLL(so, mode=ctypes.RTLD_GLOBAL)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+preload_cuda_libraries()
+
 # Attempt to load from Google Colab Secrets (🔑 tab) if running inside Colab
 try:
     from google.colab import userdata
