@@ -5,11 +5,12 @@ System Layer: worker / cutter
 """
 
 import os
+import shutil
 import subprocess
 import imageio_ffmpeg
 from typing import Dict, Any
 
-FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
+FFMPEG_BIN = shutil.which("ffmpeg") or imageio_ffmpeg.get_ffmpeg_exe()
 
 def render_reel(
     input_video: str,
