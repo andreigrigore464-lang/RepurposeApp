@@ -43,7 +43,8 @@ def run_job_pipeline(job: dict, on_progress=None):
     font_size = template_config.get("font_size", 92)
     color_primary = hex_to_ass_color(template_config.get("primary_color", "#BDDF3C"))
     color_highlight = hex_to_ass_color(template_config.get("highlight_color", "#FFFFFF"))
-    framing_mode = template_config.get("framing_mode", "blurred_background")
+    framing_mode = template_config.get("framing_mode") or config.get("framing_mode", "smart_zoom")
+    viewport_data = template_config.get("viewport") or config.get("viewport")
 
     temp_dir = tempfile.mkdtemp(prefix=f"repurpose_{job_id[:8]}_")
     raw_video_path = os.path.join(temp_dir, "source_video.mp4")
@@ -256,6 +257,7 @@ def run_job_pipeline(job: dict, on_progress=None):
                 ass_path=ass_path,
                 output_path=output_mp4,
                 framing_mode=framing_mode,
+                viewport_data=viewport_data,
             )
 
             # Upload rendered MP4 to R2

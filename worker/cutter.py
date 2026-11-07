@@ -8,9 +8,26 @@ import os
 import shutil
 import subprocess
 import imageio_ffmpeg
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple
+from framing.base import Viewport
+from framing.registry import get_framing_strategy
 
 FFMPEG_BIN = shutil.which("ffmpeg") or imageio_ffmpeg.get_ffmpeg_exe()
+
+def get_video_dimensions(video_path: str) -> Tuple[int, int]:
+    """Returns (width, height) of the video file using OpenCV or fallback."""
+    try:
+        import cv2
+        cap = cv2.VideoCapture(video_path)
+        if cap.isOpened():
+            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+            if w > 0 and h > 0:
+                return (w, h)
+    except Exception:
+        pass
+    return (1920, 1080)
 
 def render_reel(
     input_video: str,
@@ -18,12 +35,13 @@ def render_reel(
     end_sec: float,
     ass_path: str,
     output_path: str,
-    framing_mode: str = "blurred_background",
-    fonts_dir: str = None
+    framing_mode: str = "smart_zoom",
+    viewport_data: Optional[Dict[str, Any]] = None,
+    fonts_dir: Optional[str] = None
 ) -> None:
     """
-    Cuts video segment, applies 9:16 framing (crop or blurred pad), burns ASS subtitles,
-    and produces high-resolution vertical MP4.
+    Cuts video segment, applies modular 9:16 framing strategy (smart zoom, blurred pad, crop),
+    burns ASS subtitles, and produces high-resolution vertical MP4.
     """
     duration = end_sec - start_sec
     base_name = os.path.splitext(output_path)[0]
@@ -38,17 +56,19 @@ def render_reel(
     # Normalize subtitle path for FFmpeg filter graph on Windows
     safe_ass = ass_path.replace("\\", "/").replace(":", "\\:")
 
-    # 1. Choose 9:16 vertical layout filter graph
-    if framing_mode == "crop":
-        # Crop 16:9 to center 9:16 vertical strip
-        layout_filter = "scale=-1:1920,crop=1080:1920:(in_w-1080)/2:0"
-    else:
-        # Default: Sharp centered video with blurred background expansion
-        layout_filter = (
-            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20:5[bg];"
-            "[0:v]scale=1080:-1[fg];"
-            "[bg][fg]overlay=0:(1920-overlay_h)/2"
-        )
+    # 1. Resolve template viewport geometry and framing strategy
+    viewport = Viewport.from_dict(viewport_data)
+    src_w, src_h = get_video_dimensions(input_video)
+
+    strategy = get_framing_strategy(framing_mode)
+    framing_res = strategy.build_filter(
+        video_path=input_video,
+        viewport=viewport,
+        source_width=src_w,
+        source_height=src_h,
+        duration_s=duration
+    )
+    print(f"[cutter] Using framing strategy '{strategy.name}': {framing_res.description}")
 
     # 2. Step 1: Cut snippet and apply 9:16 framing
     print(f"[cutter] Cutting {start_sec:.2f}s -> {end_sec:.2f}s ({duration:.2f}s) to 9:16 vertical...")
@@ -60,10 +80,10 @@ def render_reel(
         "-i", input_video,
     ]
 
-    if framing_mode == "crop":
-        cut_cmd.extend(["-vf", layout_filter])
+    if framing_res.is_complex:
+        cut_cmd.extend(["-filter_complex", framing_res.filter_expression])
     else:
-        cut_cmd.extend(["-filter_complex", layout_filter])
+        cut_cmd.extend(["-vf", framing_res.filter_expression])
 
     cut_cmd.extend([
         "-c:v", "libx264", "-preset", "fast", "-crf", "18",

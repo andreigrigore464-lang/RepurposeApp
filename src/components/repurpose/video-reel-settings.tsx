@@ -10,10 +10,18 @@ import React, { useState } from "react";
 import { UserTemplateRecord } from "@/db/queries-brand-kit";
 import { ManualTimestamp } from "@/components/repurpose/types";
 
+export type FramingMode = "smart_zoom" | "blurred_background" | "center_crop";
+
 interface VideoReelSettingsProps {
   templates: UserTemplateRecord[];
   selectedTemplateId: string;
   onSelectTemplateId: (id: string) => void;
+  framingMode: FramingMode;
+  onChangeFramingMode: (mode: FramingMode) => void;
+  topMargin: number;
+  onChangeTopMargin: (val: number) => void;
+  bottomMargin: number;
+  onChangeBottomMargin: (val: number) => void;
   clipMode: "ai_auto" | "manual";
   onChangeClipMode: (mode: "ai_auto" | "manual") => void;
   clipsCount: number;
@@ -34,6 +42,12 @@ export function VideoReelSettings({
   templates,
   selectedTemplateId,
   onSelectTemplateId,
+  framingMode,
+  onChangeFramingMode,
+  topMargin,
+  onChangeTopMargin,
+  bottomMargin,
+  onChangeBottomMargin,
   clipMode,
   onChangeClipMode,
   clipsCount,
@@ -110,6 +124,68 @@ export function VideoReelSettings({
               Manual Timestamps
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* 9:16 Framing Strategy */}
+      <div>
+        <label className="block text-xs font-medium text-app-ink mb-1">
+          9:16 Video Framing Strategy
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => onChangeFramingMode("smart_zoom")}
+            className={`p-2.5 rounded-lg border text-left transition-all ${
+              framingMode === "smart_zoom"
+                ? "border-app-accent bg-app-accent/10 shadow-xs"
+                : "border-app-border bg-app-surface hover:border-zinc-300"
+            }`}
+          >
+            <div className="flex items-center gap-1.5 font-semibold text-xs text-app-ink">
+              <span>🎯</span>
+              <span>Smart Subject Zoom</span>
+            </div>
+            <p className="text-[11px] text-app-muted mt-1 leading-tight">
+              AI face & speaker tracking keeps active subjects centered in full vertical 9:16 view.
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChangeFramingMode("blurred_background")}
+            className={`p-2.5 rounded-lg border text-left transition-all ${
+              framingMode === "blurred_background"
+                ? "border-app-accent bg-app-accent/10 shadow-xs"
+                : "border-app-border bg-app-surface hover:border-zinc-300"
+            }`}
+          >
+            <div className="flex items-center gap-1.5 font-semibold text-xs text-app-ink">
+              <span>🌫️</span>
+              <span>Blurred Background</span>
+            </div>
+            <p className="text-[11px] text-app-muted mt-1 leading-tight">
+              Preserves entire 16:9 widescreen frame in center with blurred ambient top/bottom bars.
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChangeFramingMode("center_crop")}
+            className={`p-2.5 rounded-lg border text-left transition-all ${
+              framingMode === "center_crop"
+                ? "border-app-accent bg-app-accent/10 shadow-xs"
+                : "border-app-border bg-app-surface hover:border-zinc-300"
+            }`}
+          >
+            <div className="flex items-center gap-1.5 font-semibold text-xs text-app-ink">
+              <span>✂️</span>
+              <span>Center Crop</span>
+            </div>
+            <p className="text-[11px] text-app-muted mt-1 leading-tight">
+              Fixed center 9:16 crop. Zero blur, fast rendering, best for centered podium speakers.
+            </p>
+          </button>
         </div>
       </div>
 
@@ -212,7 +288,7 @@ export function VideoReelSettings({
         </div>
       )}
 
-      {/* Advanced Transcription Settings */}
+      {/* Advanced Settings */}
       <div>
         <button
           type="button"
@@ -220,34 +296,72 @@ export function VideoReelSettings({
           className="text-xs text-app-muted hover:text-app-ink flex items-center gap-1 font-medium transition-colors"
         >
           <span>{showAdvanced ? "▼" : "▶"}</span>
-          <span>Advanced Transcription Settings (Language & Vocabulary Hint)</span>
+          <span>Advanced Layout & Transcription Settings</span>
         </button>
 
         {showAdvanced && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 p-4 rounded-lg bg-app-subtle/30 border border-app-border">
-            <div>
-              <label className="block text-[11px] font-semibold text-app-ink mb-1">
-                Spoken Language Code (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. ro, en, es, de, fr (leave blank for auto)"
-                value={language}
-                onChange={(e) => onChangeLanguage(e.target.value)}
-                className="w-full rounded border border-app-border bg-app-surface px-2.5 py-1.5 text-xs font-mono"
-              />
+          <div className="space-y-4 mt-3 p-4 rounded-lg bg-app-subtle/30 border border-app-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-app-ink mb-1">
+                  Template Top Safe Area (px)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="600"
+                  step="10"
+                  placeholder="0"
+                  value={topMargin || ""}
+                  onChange={(e) => onChangeTopMargin(parseInt(e.target.value) || 0)}
+                  className="w-full rounded border border-app-border bg-app-surface px-2.5 py-1.5 text-xs font-mono"
+                />
+                <p className="text-[10px] text-app-muted mt-1">Leaves room at top for headline or title banners.</p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-app-ink mb-1">
+                  Template Bottom Safe Area (px)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="600"
+                  step="10"
+                  placeholder="0"
+                  value={bottomMargin || ""}
+                  onChange={(e) => onChangeBottomMargin(parseInt(e.target.value) || 0)}
+                  className="w-full rounded border border-app-border bg-app-surface px-2.5 py-1.5 text-xs font-mono"
+                />
+                <p className="text-[10px] text-app-muted mt-1">Leaves room at bottom for captions & profile badge.</p>
+              </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-app-ink mb-1">
-                Vocabulary & Proper Names Hint (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. UPB Drive, Politehnica, Formula Student"
-                value={vocabularyHint}
-                onChange={(e) => onChangeVocabularyHint(e.target.value)}
-                className="w-full rounded border border-app-border bg-app-surface px-2.5 py-1.5 text-xs"
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-app-border/50">
+              <div>
+                <label className="block text-[11px] font-semibold text-app-ink mb-1">
+                  Spoken Language Code (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. ro, en, es, de, fr (leave blank for auto)"
+                  value={language}
+                  onChange={(e) => onChangeLanguage(e.target.value)}
+                  className="w-full rounded border border-app-border bg-app-surface px-2.5 py-1.5 text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-app-ink mb-1">
+                  Vocabulary & Proper Names Hint (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. UPB Drive, Politehnica, Formula Student"
+                  value={vocabularyHint}
+                  onChange={(e) => onChangeVocabularyHint(e.target.value)}
+                  className="w-full rounded border border-app-border bg-app-surface px-2.5 py-1.5 text-xs"
+                />
+              </div>
             </div>
           </div>
         )}

@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
       thumbnailUrl,
       durationSeconds,
       templateId,
+      framingMode, // "smart_zoom" | "blurred_background" | "center_crop"
+      viewport, // { top: number, bottom: number } optional margins
       clipSelectionMode, // "ai_auto" | "manual"
       clipsCount,
       targetDuration, // "15-30" | "30-60" | "60-90"
@@ -76,6 +78,8 @@ export async function POST(req: NextRequest) {
       video_url: videoUrl,
       canonical_url: canonicalUrl,
       template_id: templateId || undefined,
+      framing_mode: framingMode || "smart_zoom",
+      viewport: viewport || undefined,
       clip_selection_mode: clipSelectionMode || "ai_auto",
       clips_count: Math.min(Math.max(clipsCount || 3, 1), 5),
       target_duration: targetDuration || "30-60",
