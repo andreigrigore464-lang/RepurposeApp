@@ -25,7 +25,7 @@ def poll_and_process_jobs(run_once: bool = False):
                 supabase.table("video_render_jobs")
                 .select("*")
                 .eq("status", "queued")
-                .order("created_at", { "ascending": True })
+                .order("created_at", desc=False)
                 .limit(1)
                 .execute()
             )
