@@ -1,6 +1,7 @@
 """
 Configuration & Credentials Seam
 Loads Supabase, Cloudflare R2, and Whisper device parameters from environment.
+Supports .env.local file loading and Google Colab native Secrets (🔑 tab).
 System Layer: worker / config
 """
 
@@ -8,8 +9,8 @@ import os
 import boto3
 from supabase import create_client, Client
 
-# Attempt to load local environment from .env.local if present
 def load_env_local():
+    """Attempt to load local environment from .env.local if present."""
     env_paths = [".env.local", "../.env.local", "../../.env.local"]
     for path in env_paths:
         if os.path.exists(path):
@@ -22,6 +23,28 @@ def load_env_local():
             break
 
 load_env_local()
+
+# Attempt to load from Google Colab Secrets (🔑 tab) if running inside Colab
+try:
+    from google.colab import userdata
+    for colab_key in [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "R2_ACCOUNT_ID",
+        "R2_ACCESS_KEY_ID",
+        "R2_SECRET_ACCESS_KEY",
+        "R2_BUCKET_NAME",
+        "GEMINI_API_KEY",
+    ]:
+        try:
+            val = userdata.get(colab_key)
+            if val:
+                os.environ.setdefault(colab_key, val)
+        except Exception:
+            pass
+except Exception:
+    pass
 
 # Supabase Credentials
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or os.environ.get("SUPABASE_URL")
@@ -68,4 +91,3 @@ def get_r2_client():
         aws_secret_access_key=R2_SECRET_ACCESS_KEY,
         region_name="auto",
     )
-
