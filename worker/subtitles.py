@@ -123,7 +123,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             parts = []
             for j, w in enumerate(phrase):
-                txt = w["word"].strip().upper()
+                raw_word = w["word"].strip().upper()
+                # Sanitize word: keep alphanumeric, standard punctuation, whitespace, and accents
+                txt = re.sub(r'[^\w\s.,!?:;\'"–—\-$%@#&()/*]', '', raw_word).strip()
+                if not txt:
+                    continue
                 if j == idx:
                     parts.append(f"{{\\c{color_highlight}}}{txt}{{\\c{color_primary}}}")
                 else:

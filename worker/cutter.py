@@ -29,6 +29,12 @@ def render_reel(
     base_name = os.path.splitext(output_path)[0]
     temp_cut = f"{base_name}_cut.mp4"
 
+    # Default to bundled fonts directory if not explicitly provided
+    if not fonts_dir:
+        default_fonts = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+        if os.path.exists(default_fonts):
+            fonts_dir = default_fonts
+
     # Normalize subtitle path for FFmpeg filter graph on Windows
     safe_ass = ass_path.replace("\\", "/").replace(":", "\\:")
 
@@ -48,6 +54,7 @@ def render_reel(
     print(f"[cutter] Cutting {start_sec:.2f}s -> {end_sec:.2f}s ({duration:.2f}s) to 9:16 vertical...")
     cut_cmd = [
         FFMPEG_BIN, "-y",
+        "-v", "error",
         "-ss", str(start_sec),
         "-t", str(duration),
         "-i", input_video,
@@ -75,6 +82,7 @@ def render_reel(
 
     burn_cmd = [
         FFMPEG_BIN, "-y",
+        "-v", "error",
         "-i", temp_cut,
         "-vf", subtitle_filter,
         "-c:v", "libx264", "-preset", "medium", "-crf", "18",
