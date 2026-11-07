@@ -120,6 +120,21 @@ This document tracks technical decisions, justifications, and package additions 
 - **Decision:** Use Cloudflare R2 via `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`. Wrap all operations behind a pluggable interface in `src/storage/video-storage.ts` with local filesystem fallback for offline development.
 - **Consequences:** Client browsers upload directly to R2 via presigned URLs, bypassing Vercel/Next.js payload limits completely. Raw video files are deleted immediately after rendering the 3 short 9:16 reels, minimizing storage costs.
 
+### ADR 021: Decoupled Asynchronous Python Worker Architecture for Video Rendering
+- **Context:** Heavy media processing (Whisper speech recognition, FFmpeg filter graphs, 2GB+ video downloads) cannot run inside Next.js/Vercel serverless functions due to 60s execution timeouts and lack of GPU acceleration.
+- **Decision:** Isolate all video processing into a standalone asynchronous Python worker in `worker/`. The web app and worker communicate exclusively through Supabase (`video_render_jobs` table) and Cloudflare R2.
+- **Consequences:** Next.js UI remains ultra-fast and lightweight. The worker can be run on a local machine, a free Google Colab T4 GPU, or scalable GPU clouds (Modal/RunPod) with zero code changes in the Next.js application.
+
+### ADR 022: Active-Word Karaoke Subtitles with Dynamic ASS Overlays and Word Timestamps
+- **Context:** Modern vertical social media reels require dynamic, word-by-word karaoke subtitles with custom brand typography and outline strokes. Standard SRT/VTT formats only support static block cues.
+- **Decision:** Use `faster-whisper` with `word_timestamps=True` to extract exact word millisecond start/end boundaries. Generate Advanced SubStation Alpha (`.ass`) subtitles with `{\c&H00FFFFFF&}` active highlighting tags and burn them directly via FFmpeg's `subtitles` filter graph.
+- **Consequences:** Produces high-retention social reels without requiring external video editing software (Premiere/CapCut). Clean `.srt` files are also generated and offered as optional exports.
+
+### ADR 023: Zero-Secret Google Colab Runner via Encrypted Userdata Secrets
+- **Context:** Running the worker on Google Colab requires cloud credentials (Supabase, Cloudflare R2, Gemini API). Hardcoding or pasting credentials into notebook cells creates dangerous secret exposure risks if notebooks are shared or committed.
+- **Decision:** Configure `worker/config.py` and `worker/colab_runner.ipynb` to read credentials directly from Google Colab's native encrypted Secrets vault (`google.colab.userdata`).
+- **Consequences:** Zero API keys or tokens are stored or displayed in the notebook code or Git history. Secrets remain encrypted and private to the user's Google account.
+
 
 
 

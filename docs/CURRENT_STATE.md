@@ -44,6 +44,16 @@ Built the review-to-calendar scheduling flow, monthly agenda view, frictionless 
 * **Live In-App Notification Badge (`src/components/layout/nav-header.tsx`):** Dynamic badge on the Calendar navigation item showing the count of posts due today.
 * **Database & API Layer (`src/db/queries-calendar.ts`, `src/app/api/calendar/route.ts`):** Clean persistence and REST endpoints for calendar state and trust poll sentiment.
 
+### E. Long-Form Video Repurposing & Vertical Reels Studio (`/repurpose`, `/templates`, `worker/`)
+Built the complete, end-to-end long-form video repurposing pipeline for generating 3 short vertical 9:16 promo reels from YouTube videos and direct `.mp4`/`.mov` uploads:
+* **Cloudflare R2 Object Storage (`src/storage/video-storage.ts`, `src/app/api/storage/presign/route.ts`):** Direct-to-storage presigned upload URLs (bypassing serverless file limits for 2GB+ podcasts), presigned GETs, and ephemeral raw media cleanup.
+* **Dedicated Repurpose Studio (`/repurpose`, `src/components/repurpose/`):** Clean tabbed studio (`repurpose-studio.tsx`, `video-repurpose-panel.tsx`, `video-reel-settings.tsx`, `article-repurpose-panel.tsx`, `video-progress-card.tsx`) with YouTube instant thumbnail detection, drag-and-drop file uploader with XHR progress calculation, duration selectors, and live worker polling tickers.
+* **Visual Reel Templates & 9:16 Canvas Designer (`/templates`, `src/render/`):** Extended schema with `VideoElementSchema`, `CaptionsElementSchema`, and vertical `1080×1920` canvas. Section divider separating static post templates from video reel templates.
+* **YouTube Channel Workflows (`/feeds`):** Native YouTube Atom RSS resolution (`src/pipeline/1-ingest/discover-youtube-feed.ts`), YouTube channel builder fields (`workflow-youtube-fields.tsx`), and safe ingest filter (`poll-feed.ts`) preventing back-catalog flood.
+* **Drafts Inbox & 9:16 Video Player (`/inbox`, `/review/[id]`):** Split modular inbox (`inbox-table.tsx`, `inbox-table-row.tsx`, `inbox-format-badges.tsx`) rendering `Reel #1 (0:42)` badges, live worker spinners (`⚙️ transcribing: 35%`), and an HTML5 9:16 vertical player (`video-reel-player.tsx`) with direct MP4 downloads, `.srt` subtitle export, and scheduling.
+* **Decoupled Asynchronous Python Worker (`worker/`):** Standalone worker pulling jobs from Supabase `video_render_jobs`, transcribing via `faster-whisper` with word timestamps, prompting Gemini for complete-thought hook selection, cutting with FFmpeg, burning `.ass` karaoke subtitles, and providing a 1-click Google Colab T4 GPU runner (`colab_runner.ipynb`) powered by native encrypted Colab Secrets (🔑).
+* *Detailed spec:* [docs/specs/video-reels-pipeline.md](file:///d:/Work/RepurposeApp/docs/specs/video-reels-pipeline.md)
+
 ---
 
 ## 2. Locked Decisions Settled in This Chat
@@ -57,6 +67,10 @@ Built the review-to-calendar scheduling flow, monthly agenda view, frictionless 
    * Users create and configure their own workflows. Do not generate fake default workflows without user intent.
 4. **Groq as Dev Harness:** 
    * Groq is used as a free, high-speed test harness for pipeline plumbing and testing. Production copywriting quality will be achieved by setting `LLM_PROVIDER=anthropic` (Claude 3.5 Sonnet) or `openai` (GPT-4o).
+5. **Decoupled Video Worker Architecture:**
+   * Heavy video processing (Whisper speech recognition, FFmpeg filter graphs, 2GB+ video downloads) must never run inside Next.js/Vercel serverless functions. All video processing is isolated in an asynchronous worker talking exclusively to Supabase and Cloudflare R2.
+6. **Ephemeral Raw Media Rule:**
+   * Multi-GB raw source videos stored in Cloudflare R2 are automatically deleted by the worker immediately after the 3 short (~15MB) promo reels are cut and uploaded, keeping storage costs close to zero.
 
 ---
 
@@ -66,3 +80,4 @@ Built the review-to-calendar scheduling flow, monthly agenda view, frictionless 
 * [pipeline-and-llm.md](file:///d:/Work/RepurposeApp/docs/specs/pipeline-and-llm.md) — Groq provider, 429 TPM backoff, sequential ingest queue, failure recovery.
 * [template-editor.md](file:///d:/Work/RepurposeApp/docs/specs/template-editor.md) — Master templates dashboard, interactive drag-and-drop canvas designer, magnetic snapping, slot palette, and hierarchical template loader.
 * [calendar-and-scheduling.md](file:///d:/Work/RepurposeApp/docs/specs/calendar-and-scheduling.md) — Editorial calendar, simple & advanced scheduling modal, fullscreen day view, zero-friction dispatch modal, and auto-posting trust poll.
+* [video-reels-pipeline.md](file:///d:/Work/RepurposeApp/docs/specs/video-reels-pipeline.md) — Long-form video repurposing, Cloudflare R2 storage seam, YouTube Atom discovery, 9:16 vertical player, active-word karaoke subtitles, and decoupled Python worker.
