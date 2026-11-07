@@ -31,3 +31,18 @@ CREATE INDEX IF NOT EXISTS idx_video_render_jobs_brand_id ON video_render_jobs(b
 
 COMMENT ON TABLE video_render_jobs IS 'Asynchronous queue and progress tracker for Python video worker (whisper, hook detection, ffmpeg)';
 
+-- 3. Enable Row Level Security (RLS)
+ALTER TABLE video_render_jobs ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'video_render_jobs' AND policyname = 'Allow access to video_render_jobs'
+  ) THEN
+    CREATE POLICY "Allow access to video_render_jobs" ON video_render_jobs FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- 4. Make digest_id optional on format_outputs for standalone media formats (video reels)
+ALTER TABLE format_outputs ALTER COLUMN digest_id DROP NOT NULL;
+

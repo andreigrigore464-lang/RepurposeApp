@@ -9,7 +9,7 @@ import { supabase } from "./client";
 export interface FormatOutputRecord {
   id: string;
   article_id: string;
-  digest_id: string;
+  digest_id?: string | null;
   brand_id: string;
   format_kind: string;
   slots_data: Record<string, unknown>;
@@ -21,7 +21,7 @@ export interface FormatOutputRecord {
 
 export async function insertFormatOutput(params: {
   articleId: string;
-  digestId: string;
+  digestId?: string | null;
   brandId: string;
   formatKind: string;
   slotsData: Record<string, unknown>;
@@ -32,7 +32,7 @@ export async function insertFormatOutput(params: {
     .from("format_outputs")
     .insert({
       article_id: params.articleId,
-      digest_id: params.digestId,
+      digest_id: params.digestId || null,
       brand_id: params.brandId,
       format_kind: params.formatKind,
       slots_data: params.slotsData,

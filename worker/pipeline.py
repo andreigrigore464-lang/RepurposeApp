@@ -81,7 +81,14 @@ def run_job_pipeline(job: dict, on_progress=None):
 
         whisper_model_name = "medium" if DEFAULT_DEVICE == "cuda" else "base"
         print(f"[pipeline] Loading Whisper model '{whisper_model_name}' on {DEFAULT_DEVICE} ({DEFAULT_COMPUTE_TYPE})...")
-        model = WhisperModel(whisper_model_name, device=DEFAULT_DEVICE, compute_type=DEFAULT_COMPUTE_TYPE)
+        try:
+            model = WhisperModel(whisper_model_name, device=DEFAULT_DEVICE, compute_type=DEFAULT_COMPUTE_TYPE)
+        except Exception as e:
+            if DEFAULT_DEVICE == "cuda":
+                print(f"[pipeline] CUDA acceleration failed ({e}). Falling back to CPU with 'base' model...")
+                model = WhisperModel("base", device="cpu", compute_type="int8")
+            else:
+                raise e
 
         audio_data, sr = sf.read(wav_path)
         segments_gen, info = model.transcribe(
@@ -221,7 +228,7 @@ def run_job_pipeline(job: dict, on_progress=None):
                 "article_id": article_id,
                 "format_kind": "video-reel",
                 "slots_data": slots_data,
-                "status": "drafted",
+                "status": "draft",
             }).execute()
 
             if res.data and len(res.data) > 0:
