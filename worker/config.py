@@ -35,37 +35,60 @@ def load_env_local():
 load_env_local()
 
 def preload_cuda_libraries():
-    """Forces loading of nvidia cublas and cudnn shared libraries into the process global symbol table."""
+    """Forces installation and registration of nvidia cublas and cudnn shared libraries into the system dynamic linker."""
     import sys
     if not sys.platform.startswith("linux"):
         return
 
-    import ctypes
+    import os
     import glob
+    import subprocess
+    import ctypes
 
+    # 1. Ensure required CUDA 12 runtime packages are installed
+    try:
+        import nvidia.cublas.lib
+    except ImportError:
+        print("[config] nvidia-cublas-cu12 missing. Installing into environment...")
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "-q", "nvidia-cublas-cu12", "nvidia-cudnn-cu12"], check=False)
+        except Exception:
+            pass
+
+    # 2. Collect all nvidia library directories
+    dirs_to_check = []
     try:
         import site
-        dirs_to_check = []
         for p in site.getsitepackages():
-            dirs_to_check.append(os.path.join(p, "nvidia", "cublas", "lib"))
-            dirs_to_check.append(os.path.join(p, "nvidia", "cudnn", "lib"))
-
-        dirs_to_check.extend(glob.glob("/usr/local/lib/python*/dist-packages/nvidia/cublas/lib"))
-        dirs_to_check.extend(glob.glob("/usr/local/lib/python*/dist-packages/nvidia/cudnn/lib"))
-
-        for lib_dir in dirs_to_check:
-            if os.path.exists(lib_dir):
-                cur_ld = os.environ.get("LD_LIBRARY_PATH", "")
-                if lib_dir not in cur_ld:
-                    os.environ["LD_LIBRARY_PATH"] = f"{lib_dir}:{cur_ld}"
-
-                for so in sorted(glob.glob(os.path.join(lib_dir, "*.so*"))):
-                    try:
-                        ctypes.CDLL(so, mode=ctypes.RTLD_GLOBAL)
-                    except Exception:
-                        pass
+            dirs_to_check.extend(glob.glob(f"{p}/nvidia/*/lib"))
     except Exception:
         pass
+    dirs_to_check.extend(glob.glob("/usr/local/lib/python*/dist-packages/nvidia/*/lib"))
+    dirs_to_check.extend(glob.glob("/usr/lib/python*/dist-packages/nvidia/*/lib"))
+
+    valid_dirs = [d for d in set(dirs_to_check) if os.path.isdir(d)]
+
+    # 3. Permanently write to Linux ld.so config and refresh cache
+    if valid_dirs:
+        try:
+            conf_path = "/etc/ld.so.conf.d/nvidia_pip.conf"
+            with open(conf_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(valid_dirs) + "\n")
+            subprocess.run(["ldconfig"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+    # 4. Also preload shared libraries with RTLD_GLOBAL in process memory
+    for lib_dir in valid_dirs:
+        cur_ld = os.environ.get("LD_LIBRARY_PATH", "")
+        if lib_dir not in cur_ld:
+            os.environ["LD_LIBRARY_PATH"] = f"{lib_dir}:{cur_ld}"
+
+        for so in sorted(glob.glob(os.path.join(lib_dir, "*.so*"))):
+            try:
+                ctypes.CDLL(so, mode=ctypes.RTLD_GLOBAL)
+            except Exception:
+                pass
 
 preload_cuda_libraries()
 
