@@ -92,80 +92,34 @@ def run_job_pipeline(job: dict, on_progress=None):
             r2.download_file(R2_BUCKET_NAME, video_url, raw_video_path)
 
         # ==========================================
-        # 2. AUDIO EXTRACTION & TRANSCRIPTION
+        # 2. AUDIO EXTRACTION & TRANSCRIPTION SETUP
         # ==========================================
         if on_progress:
-            on_progress(status="transcribing", progress_pct=25, stage="Extracting audio & transcribing speech...")
+            on_progress(status="transcribing", progress_pct=25, stage="Extracting audio for rapid transcription...")
 
         extract_audio_for_transcription(raw_video_path, wav_path)
 
         audio_data, sr = sf.read(wav_path)
-        all_words = []
-        segments = []
+        total_audio_s = len(audio_data) / sr
 
+        # Load Whisper model once (using 'base' for blistering ~60x real-time speed)
+        whisper_model_name = "base"
+        print(f"[pipeline] Loading Whisper model '{whisper_model_name}' on {DEFAULT_DEVICE} ({DEFAULT_COMPUTE_TYPE})...")
         try:
-            whisper_model_name = "medium" if DEFAULT_DEVICE == "cuda" else "base"
-            print(f"[pipeline] Loading Whisper model '{whisper_model_name}' on {DEFAULT_DEVICE} ({DEFAULT_COMPUTE_TYPE})...")
             model = WhisperModel(whisper_model_name, device=DEFAULT_DEVICE, compute_type=DEFAULT_COMPUTE_TYPE)
-            segments_gen, info = model.transcribe(
-                audio_data,
-                language=language or None,
-                initial_prompt=vocab_hint or None,
-                word_timestamps=True
-            )
-            for seg in segments_gen:
-                segments.append({
-                    "start": seg.start,
-                    "end": seg.end,
-                    "text": seg.text,
-                })
-                for w in seg.words:
-                    all_words.append({
-                        "word": w.word,
-                        "start": w.start,
-                        "end": w.end,
-                    })
         except Exception as e:
             if DEFAULT_DEVICE == "cuda":
-                print(f"[pipeline] GPU inference encountered library error ({e}). Falling back to CPU with 'base' model...")
+                print(f"[pipeline] GPU initialization error ({e}). Falling back to CPU...")
                 model = WhisperModel("base", device="cpu", compute_type="int8")
-                all_words = []
-                segments = []
-                segments_gen, info = model.transcribe(
-                    audio_data,
-                    language=language or None,
-                    initial_prompt=vocab_hint or None,
-                    word_timestamps=True
-                )
-                for seg in segments_gen:
-                    segments.append({
-                        "start": seg.start,
-                        "end": seg.end,
-                        "text": seg.text,
-                    })
-                    for w in seg.words:
-                        all_words.append({
-                            "word": w.word,
-                            "start": w.start,
-                            "end": w.end,
-                        })
             else:
                 raise e
 
-        print(f"[pipeline] Transcription complete: {len(segments)} sentences, {len(all_words)} words.")
-
-        # Update article clean_text with full transcript
-        full_transcript = " ".join(s["text"].strip() for s in segments)
-        supabase.table("articles").update({"clean_text": full_transcript}).eq("id", article_id).execute()
-
         # ==========================================
-        # 3. HOOK & CLIP SELECTION
+        # 3. HOOK & CLIP SELECTION (TWO-PASS ARCHITECTURE)
         # ==========================================
-        if on_progress:
-            on_progress(status="selecting_hooks", progress_pct=50, stage="Detecting viral narrative hooks...")
-
         selected_clips = []
         if manual_timestamps and len(manual_timestamps) > 0:
+            print(f"[pipeline] Manual timestamps provided: skipping full audio scout pass.")
             for idx, ts in enumerate(manual_timestamps):
                 s_sec = parse_time_to_seconds(ts["start"])
                 e_sec = parse_time_to_seconds(ts["end"])
@@ -177,6 +131,53 @@ def run_job_pipeline(job: dict, on_progress=None):
                     "topic": f"Manual Clip #{idx + 1}"
                 })
         else:
+            # Pass 1: Fast Scout Transcription (Full audio, beam_size=1, NO word timestamps)
+            if on_progress:
+                on_progress(status="transcribing", progress_pct=35, stage=f"Rapid scout transcription ({int(total_audio_s // 60)}m audio)...")
+
+            print(f"[pipeline] Pass 1 (Fast Scout): Scanning full {total_audio_s:.1f}s audio at ~60x speed...")
+            segments = []
+            try:
+                scout_gen, _ = model.transcribe(
+                    audio_data,
+                    language=language or None,
+                    initial_prompt=vocab_hint or None,
+                    word_timestamps=False,
+                    beam_size=1
+                )
+                for seg in scout_gen:
+                    segments.append({
+                        "start": seg.start,
+                        "end": seg.end,
+                        "text": seg.text,
+                    })
+            except Exception as e:
+                print(f"[pipeline] Scout pass GPU error ({e}). Retrying on CPU...")
+                model = WhisperModel("base", device="cpu", compute_type="int8")
+                scout_gen, _ = model.transcribe(
+                    audio_data,
+                    language=language or None,
+                    initial_prompt=vocab_hint or None,
+                    word_timestamps=False,
+                    beam_size=1
+                )
+                for seg in scout_gen:
+                    segments.append({
+                        "start": seg.start,
+                        "end": seg.end,
+                        "text": seg.text,
+                    })
+
+            print(f"[pipeline] Scout pass complete: {len(segments)} sentences found.")
+
+            # Update article clean_text with full transcript
+            full_transcript = " ".join(s["text"].strip() for s in segments)
+            supabase.table("articles").update({"clean_text": full_transcript}).eq("id", article_id).execute()
+
+            # Select hooks using Gemini
+            if on_progress:
+                on_progress(status="selecting_hooks", progress_pct=50, stage="Detecting viral narrative hooks...")
+
             selected_clips = select_hooks_with_llm(
                 segments=segments,
                 clips_count=clips_count,
@@ -187,7 +188,7 @@ def run_job_pipeline(job: dict, on_progress=None):
         print(f"[pipeline] Selected {len(selected_clips)} hook clips.")
 
         # ==========================================
-        # 4. RENDER REELS & UPLOAD TO R2
+        # 4. RENDER REELS (PASS 2: PRECISION WORD TIMING)
         # ==========================================
         generated_formats = []
         total_clips = len(selected_clips)
@@ -202,15 +203,35 @@ def run_job_pipeline(job: dict, on_progress=None):
             end_s = float(clip["end_seconds"])
             duration_s = round(end_s - start_s, 1)
 
-            # Filter words falling inside this snippet window and re-zero start times
+            # Pass 2: Precision Word-Level Transcription on JUST this 30-60s clip
+            print(f"[pipeline] Pass 2 (Precision): Calculating word timings for Reel #{reel_idx} ({duration_s}s)...")
+            start_sample = int(start_s * sr)
+            end_sample = min(len(audio_data), int(end_s * sr))
+            snippet_audio = audio_data[start_sample:end_sample]
+
             clip_words = []
-            for w in all_words:
-                if w["start"] >= start_s and w["end"] <= end_s:
-                    clip_words.append({
-                        "word": w["word"],
-                        "start": max(0.0, w["start"] - start_s),
-                        "end": max(0.0, w["end"] - start_s),
-                    })
+            try:
+                clip_gen, _ = model.transcribe(
+                    snippet_audio,
+                    language=language or None,
+                    initial_prompt=vocab_hint or None,
+                    word_timestamps=True,
+                    beam_size=3
+                )
+                for seg in clip_gen:
+                    for w in (seg.words or []):
+                        clip_words.append({
+                            "word": w.word,
+                            "start": max(0.0, float(w.start)),
+                            "end": max(0.0, float(w.end)),
+                        })
+            except Exception as e:
+                print(f"[pipeline] Warning: precision clip transcription error ({e}), falling back to rough timing.")
+                clip_words = [{
+                    "word": clip.get("hook_sentence", "Clip"),
+                    "start": 0.0,
+                    "end": duration_s
+                }]
 
             # Subtitles content
             phrases = group_words_into_phrases(clip_words, max_words=4, max_gap=0.5)
