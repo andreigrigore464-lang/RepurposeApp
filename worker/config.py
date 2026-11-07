@@ -11,7 +11,14 @@ from supabase import create_client, Client
 
 def load_env_local():
     """Attempt to load local environment from .env.local if present."""
-    env_paths = [".env.local", "../.env.local", "../../.env.local"]
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    env_paths = [
+        os.path.join(base_dir, ".env.local"),
+        os.path.join(base_dir, "..", ".env.local"),
+        ".env.local",
+        "../.env.local",
+        "/content/RepurposeApp/worker/.env.local",
+    ]
     for path in env_paths:
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as f:
@@ -19,7 +26,10 @@ def load_env_local():
                     line = line.strip()
                     if line and not line.startswith("#") and "=" in line:
                         k, v = line.split("=", 1)
-                        os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+                        clean_k = k.strip()
+                        clean_v = v.strip().strip('"').strip("'")
+                        if clean_v:
+                            os.environ[clean_k] = clean_v
             break
 
 load_env_local()

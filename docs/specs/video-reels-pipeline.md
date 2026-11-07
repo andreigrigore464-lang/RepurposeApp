@@ -129,3 +129,4 @@ The worker runs independently on local machines or Google Colab (with free NVIDI
 - [`pipeline.py`](file:///d:/Work/RepurposeApp/worker/pipeline.py): Downloads media, transcribes with `faster-whisper`, cuts reels, uploads finished MP4s to Cloudflare R2, inserts rows into `format_outputs`, and **deletes the raw source video from R2** (ephemeral media cost-saving rule).
 - [`main.py`](file:///d:/Work/RepurposeApp/worker/main.py): Polling daemon loop polling `video_render_jobs` where `status = 'queued'`.
 - [`colab_runner.ipynb`](file:///d:/Work/RepurposeApp/worker/colab_runner.ipynb): 1-click Google Colab notebook for free T4 GPU execution using encrypted Colab Secrets (🔑 tab).
+
