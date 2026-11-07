@@ -32,3 +32,17 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Running on Google Colab (Free T4 GPU)
+
+1. Open `worker/colab_runner.ipynb` in [Google Colab](https://colab.research.google.com).
+2. Enable GPU: `Runtime` -> `Change runtime type` -> select `T4 GPU`.
+3. Add your credentials in the **🔑 Secrets** tab on the left sidebar:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `R2_ACCOUNT_ID`
+   - `R2_ACCESS_KEY_ID`
+   - `R2_SECRET_ACCESS_KEY`
+   - `GEMINI_API_KEY` (optional)
+4. Run the 3 notebook cells!
+
+
