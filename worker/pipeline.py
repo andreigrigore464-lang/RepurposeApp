@@ -61,9 +61,29 @@ def run_job_pipeline(job: dict, on_progress=None):
             ydl_opts = {
                 "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best",
                 "outtmpl": raw_video_path,
-                "quiet": True,
-                "no_warnings": True,
+                "quiet": False,
+                "no_warnings": False,
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": ["android", "ios"]
+                    }
+                }
             }
+
+            # Check for YouTube cookies file (to bypass Colab datacenter bot challenges)
+            cookie_candidates = [
+                os.environ.get("YOUTUBE_COOKIES_PATH"),
+                "/content/cookies.txt",
+                "/content/RepurposeApp/worker/cookies.txt",
+                "cookies.txt",
+                "../cookies.txt",
+            ]
+            for cp in cookie_candidates:
+                if cp and os.path.exists(cp):
+                    print(f"[pipeline] Authenticating yt-dlp with cookies from '{cp}'...")
+                    ydl_opts["cookiefile"] = cp
+                    break
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([video_url])
         else:
