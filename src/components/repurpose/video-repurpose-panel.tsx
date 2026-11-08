@@ -34,11 +34,8 @@ export function VideoRepurposePanel({
   // Video Options
   const videoTemplates = templates.filter((t) => t.format === "video-reel");
   const [selectedVideoTemplateId, setSelectedVideoTemplateId] = useState<string>(
-    videoTemplates[0]?.id || "preset:smart_zoom"
+    videoTemplates[0]?.id || ""
   );
-  const [framingMode, setFramingMode] = useState<"smart_zoom" | "blurred_background" | "center_crop">("smart_zoom");
-  const [topMargin, setTopMargin] = useState<number>(0);
-  const [bottomMargin, setBottomMargin] = useState<number>(0);
   const [clipMode, setClipMode] = useState<"ai_auto" | "manual">("ai_auto");
   const [clipsCount, setClipsCount] = useState<number>(3);
   const [targetDuration, setTargetDuration] = useState<"15-30" | "30-60" | "60-90">("30-60");
@@ -167,8 +164,6 @@ export function VideoRepurposePanel({
           title: videoTitle.trim() || (videoTab === "youtube" ? "YouTube Video" : uploadFile?.name),
           thumbnailUrl: videoThumbnail,
           templateId: selectedVideoTemplateId || undefined,
-          framingMode,
-          viewport: (topMargin > 0 || bottomMargin > 0) ? { top: topMargin, bottom: bottomMargin } : undefined,
           clipSelectionMode: clipMode,
           clipsCount: clipMode === "ai_auto" ? clipsCount : manualTimestamps.length,
           targetDuration,
@@ -340,12 +335,6 @@ export function VideoRepurposePanel({
         templates={templates}
         selectedTemplateId={selectedVideoTemplateId}
         onSelectTemplateId={setSelectedVideoTemplateId}
-        framingMode={framingMode}
-        onChangeFramingMode={setFramingMode}
-        topMargin={topMargin}
-        onChangeTopMargin={setTopMargin}
-        bottomMargin={bottomMargin}
-        onChangeBottomMargin={setBottomMargin}
         clipMode={clipMode}
         onChangeClipMode={setClipMode}
         clipsCount={clipsCount}
