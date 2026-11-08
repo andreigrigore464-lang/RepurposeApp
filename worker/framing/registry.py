@@ -13,10 +13,17 @@ from framing.smart_zoom import SmartZoomFraming
 
 # Declarative registry of available framing strategies
 _FRAMING_REGISTRY: Dict[str, FramingStrategy] = {
+    # Core identifiers
     "smart_zoom": SmartZoomFraming(),
     "blurred_background": BlurredBackgroundFraming(),
     "center_crop": CenterCropFraming(),
-    "crop": CenterCropFraming(), # Alias for backwards compatibility
+
+    # Template Designer aliases
+    "ai_face_focus": SmartZoomFraming(),
+    "blurred_stack": BlurredBackgroundFraming(),
+    "cover": CenterCropFraming(),
+    "crop": CenterCropFraming(),
+    "contain": BlurredBackgroundFraming(),
 }
 
 DEFAULT_FRAMING_MODE = "smart_zoom"

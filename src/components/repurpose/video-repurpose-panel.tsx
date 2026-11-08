@@ -34,7 +34,7 @@ export function VideoRepurposePanel({
   // Video Options
   const videoTemplates = templates.filter((t) => t.format === "video-reel");
   const [selectedVideoTemplateId, setSelectedVideoTemplateId] = useState<string>(
-    videoTemplates[0]?.id || ""
+    videoTemplates[0]?.id || "preset:smart_zoom"
   );
   const [framingMode, setFramingMode] = useState<"smart_zoom" | "blurred_background" | "center_crop">("smart_zoom");
   const [topMargin, setTopMargin] = useState<number>(0);
