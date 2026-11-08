@@ -19,7 +19,8 @@ class BlurredBackgroundFraming:
         viewport: Viewport,
         source_width: int,
         source_height: int,
-        duration_s: float
+        duration_s: float,
+        start_sec: float = 0.0
     ) -> FramingResult:
         # 1. Background: scale to cover entire 1080x1920 canvas, crop center, blur
         # 2. Foreground: scale to fit viewport width while maintaining aspect ratio
@@ -40,3 +41,4 @@ class BlurredBackgroundFraming:
             is_complex=True,
             description="Blurred ambient background expansion with centered uncropped foreground"
         )
+

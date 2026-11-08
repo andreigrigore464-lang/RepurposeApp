@@ -9,6 +9,7 @@ import os
 import shutil
 import tempfile
 import soundfile as sf
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from faster_whisper import WhisperModel
 import yt_dlp
 
@@ -189,23 +190,19 @@ def run_job_pipeline(job: dict, on_progress=None):
         print(f"[pipeline] Selected {len(selected_clips)} hook clips.")
 
         # ==========================================
-        # 4. RENDER REELS (PASS 2: PRECISION WORD TIMING)
+        # 4. RENDER REELS (CONCURRENT SINGLE-PASS)
         # ==========================================
-        generated_formats = []
         total_clips = len(selected_clips)
+        render_tasks = []
 
+        # 4a. Precision word timings and subtitle compilation (Pass 2)
         for i, clip in enumerate(selected_clips):
             reel_idx = i + 1
-            pct = 60 + int((i / total_clips) * 30)
-            if on_progress:
-                on_progress(status="rendering", progress_pct=pct, stage=f"Rendering Reel #{reel_idx} with karaoke subtitles...")
-
             start_s = float(clip["start_seconds"])
             end_s = float(clip["end_seconds"])
             duration_s = round(end_s - start_s, 1)
 
-            # Pass 2: Precision Word-Level Transcription on JUST this 30-60s clip
-            print(f"[pipeline] Pass 2 (Precision): Calculating word timings for Reel #{reel_idx} ({duration_s}s)...")
+            print(f"[pipeline] Pass 2: Calculating word timings for Reel #{reel_idx} ({duration_s}s)...")
             start_sample = int(start_s * sr)
             end_sample = min(len(audio_data), int(end_s * sr))
             snippet_audio = audio_data[start_sample:end_sample]
@@ -250,39 +247,56 @@ def run_job_pipeline(job: dict, on_progress=None):
                 f.write(ass_content)
 
             output_mp4 = os.path.join(temp_dir, f"reel_{reel_idx}.mp4")
+            r2_key = f"reels/{job_id}/reel_{reel_idx}.mp4"
+
+            render_tasks.append({
+                "reel_idx": reel_idx,
+                "start_s": start_s,
+                "end_s": end_s,
+                "duration_s": duration_s,
+                "ass_path": ass_path,
+                "output_mp4": output_mp4,
+                "r2_key": r2_key,
+                "srt_content": srt_content,
+                "hook_sentence": clip.get("hook_sentence", ""),
+            })
+
+        # 4b. Concurrent Single-Pass Rendering & R2 Upload
+        def process_reel(task: dict):
+            idx = task["reel_idx"]
+            print(f"[pipeline] Starting concurrent render & upload for Reel #{idx}...")
             render_reel(
                 input_video=raw_video_path,
-                start_sec=start_s,
-                end_sec=end_s,
-                ass_path=ass_path,
-                output_path=output_mp4,
+                start_sec=task["start_s"],
+                end_sec=task["end_s"],
+                ass_path=task["ass_path"],
+                output_path=task["output_mp4"],
                 framing_mode=framing_mode,
                 viewport_data=viewport_data,
             )
 
             # Upload rendered MP4 to R2
-            r2_key = f"reels/{job_id}/reel_{reel_idx}.mp4"
-            print(f"[pipeline] Uploading Reel #{reel_idx} to R2: '{r2_key}'...")
-            r2.upload_file(output_mp4, R2_BUCKET_NAME, r2_key, ExtraArgs={"ContentType": "video/mp4"})
+            print(f"[pipeline] Uploading Reel #{idx} to R2: '{task['r2_key']}'...")
+            r2.upload_file(task["output_mp4"], R2_BUCKET_NAME, task["r2_key"], ExtraArgs={"ContentType": "video/mp4"})
 
             # Generate presigned download URL
             public_video_url = r2.generate_presigned_url(
                 "get_object",
-                Params={"Bucket": R2_BUCKET_NAME, "Key": r2_key},
+                Params={"Bucket": R2_BUCKET_NAME, "Key": task["r2_key"]},
                 ExpiresIn=604800 # 7 days
             )
 
             # Insert into format_outputs table
             slots_data = {
-                "reel_index": reel_idx,
+                "reel_index": idx,
                 "video_url": public_video_url,
-                "storage_key": r2_key,
-                "duration_seconds": duration_s,
+                "storage_key": task["r2_key"],
+                "duration_seconds": task["duration_s"],
                 "aspect_ratio": "9:16",
-                "start_timestamp": f"{int(start_s // 60):02d}:{int(start_s % 60):02d}",
-                "end_timestamp": f"{int(end_s // 60):02d}:{int(end_s % 60):02d}",
-                "hook_text": clip.get("hook_sentence", ""),
-                "srt_content": srt_content,
+                "start_timestamp": f"{int(task['start_s'] // 60):02d}:{int(task['start_s'] % 60):02d}",
+                "end_timestamp": f"{int(task['end_s'] // 60):02d}:{int(task['end_s'] % 60):02d}",
+                "hook_text": task["hook_sentence"],
+                "srt_content": task["srt_content"],
             }
 
             res = supabase.table("format_outputs").insert({
@@ -294,7 +308,27 @@ def run_job_pipeline(job: dict, on_progress=None):
             }).execute()
 
             if res.data and len(res.data) > 0:
-                generated_formats.append(res.data[0])
+                return res.data[0]
+            return None
+
+        generated_formats = []
+        max_workers = min(3, len(render_tasks)) or 1
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_task = {executor.submit(process_reel, t): t for t in render_tasks}
+            completed_count = 0
+            for future in as_completed(future_to_task):
+                completed_count += 1
+                task = future_to_task[future]
+                try:
+                    format_record = future.result()
+                    if format_record:
+                        generated_formats.append(format_record)
+                    pct = 65 + int((completed_count / len(render_tasks)) * 25)
+                    if on_progress:
+                        on_progress(status="rendering", progress_pct=pct, stage=f"Completed Reel #{task['reel_idx']} ({completed_count}/{len(render_tasks)})")
+                except Exception as exc:
+                    print(f"[pipeline] Error rendering Reel #{task['reel_idx']}: {exc}")
+                    raise exc
 
         # ==========================================
         # 5. EPHEMERAL CLEANUP OF RAW SOURCE MEDIA

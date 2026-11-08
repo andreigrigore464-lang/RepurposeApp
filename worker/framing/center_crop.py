@@ -19,7 +19,8 @@ class CenterCropFraming:
         viewport: Viewport,
         source_width: int,
         source_height: int,
-        duration_s: float
+        duration_s: float,
+        start_sec: float = 0.0
     ) -> FramingResult:
         # Scale video so its height matches the viewport height
         target_h = viewport.height
@@ -46,3 +47,4 @@ class CenterCropFraming:
             is_complex=True,
             description="Static center crop positioned inside template viewport"
         )
+

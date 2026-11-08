@@ -65,7 +65,9 @@ class FramingStrategy(Protocol):
         viewport: Viewport,
         source_width: int,
         source_height: int,
-        duration_s: float
+        duration_s: float,
+        start_sec: float = 0.0
     ) -> FramingResult:
         """Compiles the layout filter expression for the specified video and viewport."""
         ...
+

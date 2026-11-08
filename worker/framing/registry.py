@@ -32,3 +32,4 @@ def get_framing_strategy(mode: str) -> FramingStrategy:
 def list_framing_strategies() -> List[str]:
     """Returns a list of all registered framing strategy identifiers."""
     return list(_FRAMING_REGISTRY.keys())
+

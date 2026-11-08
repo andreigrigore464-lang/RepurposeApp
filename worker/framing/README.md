@@ -13,3 +13,4 @@ Every strategy implements the `FramingStrategy` contract defined in `base.py`, c
 - `smart_zoom.py`: Computer vision subject tracking (MediaPipe & OpenCV) with smooth dynamic centering that maximizes visible horizontal context based on template margins.
 - `blurred_background.py`: Preserves the complete uncropped 16:9 video in the center with blurred ambient expansion on top and bottom.
 - `center_crop.py`: Fixed static vertical slice centered on the video.
+

@@ -9,9 +9,14 @@ import os
 from typing import List, Tuple, Optional
 from framing.base import Viewport, FramingResult
 
-def detect_subject_x_center(video_path: str, max_samples: int = 50) -> float:
+def detect_subject_x_center(
+    video_path: str,
+    start_sec: float = 0.0,
+    duration_s: Optional[float] = None,
+    max_samples: int = 15
+) -> float:
     """
-    Samples frames across the video snippet to detect the dominant subject's horizontal center.
+    Samples frames strictly within the active clip window to detect the dominant subject's horizontal center.
     Returns normalized X coordinate in [0.0, 1.0], where 0.5 is dead center.
     """
     try:
@@ -29,7 +34,15 @@ def detect_subject_x_center(video_path: str, max_samples: int = 50) -> float:
         cap.release()
         return 0.5
 
-    step = max(1, total_frames // max_samples)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    start_frame = max(0, int(start_sec * fps))
+    if duration_s and duration_s > 0:
+        end_frame = min(total_frames, int((start_sec + duration_s) * fps))
+    else:
+        end_frame = total_frames
+
+    clip_frames = max(1, end_frame - start_frame)
+    step = max(1, clip_frames // max_samples)
     detected_x_positions: List[float] = []
 
     # Attempt to use MediaPipe Face Detection for modern high-accuracy tracking
@@ -56,8 +69,8 @@ def detect_subject_x_center(video_path: str, max_samples: int = 50) -> float:
         except Exception:
             pass
 
-    frame_idx = 0
-    while frame_idx < total_frames and len(detected_x_positions) < max_samples:
+    frame_idx = start_frame
+    while frame_idx < end_frame and len(detected_x_positions) < max_samples:
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
         ret, frame = cap.read()
         if not ret or frame is None:
@@ -124,7 +137,8 @@ class SmartZoomFraming:
         viewport: Viewport,
         source_width: int,
         source_height: int,
-        duration_s: float
+        duration_s: float,
+        start_sec: float = 0.0
     ) -> FramingResult:
         target_w = viewport.width
         target_h = viewport.height
@@ -141,8 +155,13 @@ class SmartZoomFraming:
             crop_x = 0
             scale_cmd = f"scale={target_w}:{target_h}"
         else:
-            # Detect subject's focal center (0.0 to 1.0)
-            norm_x = detect_subject_x_center(video_path)
+            # Detect subject's focal center strictly within this clip segment
+            norm_x = detect_subject_x_center(
+                video_path=video_path,
+                start_sec=start_sec,
+                duration_s=duration_s,
+                max_samples=15
+            )
 
             # Center the crop box on the detected subject
             desired_center = norm_x * scaled_w
@@ -181,3 +200,4 @@ class SmartZoomFraming:
             is_complex=True,
             description=f"Smart zoom centered in template viewport (w={target_w}, h={target_h}, crop_x={crop_x})"
         )
+

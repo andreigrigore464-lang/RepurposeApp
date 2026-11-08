@@ -14,6 +14,36 @@ from framing.registry import get_framing_strategy
 
 FFMPEG_BIN = shutil.which("ffmpeg") or imageio_ffmpeg.get_ffmpeg_exe()
 
+_HAS_NVENC: Optional[bool] = None
+
+def is_nvenc_available() -> bool:
+    """
+    Probes whether NVIDIA hardware encoding (h264_nvenc) is supported and functional.
+    Caches the result after the first check.
+    """
+    global _HAS_NVENC
+    if _HAS_NVENC is not None:
+        return _HAS_NVENC
+
+    try:
+        # Fast 0.05s probe with nullsrc to confirm driver + GPU capability
+        probe = subprocess.run(
+            [FFMPEG_BIN, "-v", "error", "-f", "lavfi", "-i", "nullsrc=s=64x64:d=0.05", "-c:v", "h264_nvenc", "-f", "null", "-"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=4
+        )
+        _HAS_NVENC = (probe.returncode == 0)
+    except Exception:
+        _HAS_NVENC = False
+
+    if _HAS_NVENC:
+        print("[cutter] Hardware acceleration: NVIDIA NVENC (h264_nvenc) active 🚀")
+    else:
+        print("[cutter] Hardware acceleration: CPU encoding (libx264 -preset veryfast) active.")
+
+    return _HAS_NVENC
+
 def get_video_dimensions(video_path: str) -> Tuple[int, int]:
     """Returns (width, height) of the video file using OpenCV or fallback."""
     try:
@@ -40,12 +70,10 @@ def render_reel(
     fonts_dir: Optional[str] = None
 ) -> None:
     """
-    Cuts video segment, applies modular 9:16 framing strategy (smart zoom, blurred pad, crop),
-    burns ASS subtitles, and produces high-resolution vertical MP4.
+    Cuts video segment, compiles 9:16 framing, burns ASS karaoke subtitles, and encodes
+    directly to the final MP4 in a SINGLE pass using GPU NVENC (or optimized CPU fallback).
     """
     duration = end_sec - start_sec
-    base_name = os.path.splitext(output_path)[0]
-    temp_cut = f"{base_name}_cut.mp4"
 
     # Default to bundled fonts directory if not explicitly provided
     if not fonts_dir:
@@ -53,8 +81,12 @@ def render_reel(
         if os.path.exists(default_fonts):
             fonts_dir = default_fonts
 
-    # Normalize subtitle path for FFmpeg filter graph on Windows
+    # Normalize subtitle and fonts paths for FFmpeg filter graph
     safe_ass = ass_path.replace("\\", "/").replace(":", "\\:")
+    subtitle_filter = f"subtitles='{safe_ass}'"
+    if fonts_dir and os.path.exists(fonts_dir):
+        safe_fonts = fonts_dir.replace("\\", "/").replace(":", "\\:")
+        subtitle_filter += f":fontsdir='{safe_fonts}'"
 
     # 1. Resolve template viewport geometry and framing strategy
     viewport = Viewport.from_dict(viewport_data)
@@ -66,58 +98,58 @@ def render_reel(
         viewport=viewport,
         source_width=src_w,
         source_height=src_h,
-        duration_s=duration
+        duration_s=duration,
+        start_sec=start_sec
     )
     print(f"[cutter] Using framing strategy '{strategy.name}': {framing_res.description}")
 
-    # 2. Step 1: Cut snippet and apply 9:16 framing
-    print(f"[cutter] Cutting {start_sec:.2f}s -> {end_sec:.2f}s ({duration:.2f}s) to 9:16 vertical...")
-    cut_cmd = [
+    # 2. Combine framing and subtitle burning into a SINGLE filter pipeline
+    filter_args = []
+    if framing_res.is_complex:
+        # Complex filter: chain subtitles to the merged foreground/background
+        full_complex = f"{framing_res.filter_expression}[framed];[framed]{subtitle_filter}[outv]"
+        filter_args = ["-filter_complex", full_complex, "-map", "[outv]", "-map", "0:a?"]
+    else:
+        # Simple filter: chain directly with comma
+        combined_vf = f"{framing_res.filter_expression},{subtitle_filter}"
+        filter_args = ["-vf", combined_vf]
+
+    # 3. Select hardware-accelerated NVENC or optimized CPU video encoder
+    if is_nvenc_available():
+        vcodec_args = [
+            "-c:v", "h264_nvenc",
+            "-preset", "p4",
+            "-cq", "20",
+            "-b:v", "8M",
+            "-maxrate", "12M",
+            "-bufsize", "16M",
+            "-pix_fmt", "yuv420p"
+        ]
+    else:
+        vcodec_args = [
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "19",
+            "-pix_fmt", "yuv420p"
+        ]
+
+    # 4. Execute single-pass render
+    print(f"[cutter] Single-pass rendering {start_sec:.2f}s -> {end_sec:.2f}s ({duration:.2f}s) to '{output_path}'...")
+    render_cmd = [
         FFMPEG_BIN, "-y",
         "-v", "error",
         "-ss", str(start_sec),
         "-t", str(duration),
         "-i", input_video,
-    ]
-
-    if framing_res.is_complex:
-        cut_cmd.extend(["-filter_complex", framing_res.filter_expression])
-    else:
-        cut_cmd.extend(["-vf", framing_res.filter_expression])
-
-    cut_cmd.extend([
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-        "-c:a", "aac", "-b:a", "192k",
-        temp_cut
-    ])
-
-    subprocess.run(cut_cmd, check=True)
-
-    # 3. Step 2: Burn ASS karaoke subtitles
-    print(f"[cutter] Burning karaoke subtitles from {ass_path}...")
-    subtitle_filter = f"subtitles='{safe_ass}'"
-    if fonts_dir and os.path.exists(fonts_dir):
-        safe_fonts = fonts_dir.replace("\\", "/").replace(":", "\\:")
-        subtitle_filter += f":fontsdir='{safe_fonts}'"
-
-    burn_cmd = [
-        FFMPEG_BIN, "-y",
-        "-v", "error",
-        "-i", temp_cut,
-        "-vf", subtitle_filter,
-        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
-        "-c:a", "copy",
+        *filter_args,
+        *vcodec_args,
+        "-c:a", "aac",
+        "-b:a", "192k",
         output_path
     ]
 
-    try:
-        subprocess.run(burn_cmd, check=True)
-    finally:
-        # Clean temporary intermediate cut
-        if os.path.exists(temp_cut):
-            os.remove(temp_cut)
-
-    print(f"[cutter] Finished rendering reel: {output_path}")
+    subprocess.run(render_cmd, check=True)
+    print(f"[cutter] Successfully generated reel: {output_path}")
 
 def extract_audio_for_transcription(video_path: str, output_wav: str) -> None:
     """Extracts 16kHz mono PCM audio for fast Whisper transcription."""
