@@ -33,7 +33,7 @@ class BlurredBackgroundFraming:
             f"[0:v]scale={viewport.canvas_width}:{viewport.canvas_height}:force_original_aspect_ratio=increase,"
             f"crop={viewport.canvas_width}:{viewport.canvas_height},boxblur=20:5[bg];"
             f"[0:v]scale={fg_w}:-1[fg];"
-            f"[bg][fg]overlay={fg_x}:{viewport.top_margin}+({viewport.height}-overlay_h)/2"
+            f"[bg][fg]overlay={fg_x}:{viewport.top_margin}+({viewport.height}-overlay_h)/2:shortest=1"
         )
 
         return FramingResult(

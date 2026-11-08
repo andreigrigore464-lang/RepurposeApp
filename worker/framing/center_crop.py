@@ -39,7 +39,7 @@ class CenterCropFraming:
         filter_expr = (
             f"color=c=black:s={viewport.canvas_width}x{viewport.canvas_height}[base];"
             f"[0:v]scale=-1:{target_h},crop={target_w}:{target_h}:(in_w-{target_w})/2:0[fg];"
-            f"[base][fg]overlay={viewport.left_margin}:{viewport.top_margin}"
+            f"[base][fg]overlay={viewport.left_margin}:{viewport.top_margin}:shortest=1"
         )
 
         return FramingResult(

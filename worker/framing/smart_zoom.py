@@ -192,7 +192,7 @@ class SmartZoomFraming:
         filter_expr = (
             f"color=c=black:s={viewport.canvas_width}x{viewport.canvas_height}[base];"
             f"[0:v]{crop_filter}[fg];"
-            f"[base][fg]overlay={viewport.left_margin}:{viewport.top_margin}"
+            f"[base][fg]overlay={viewport.left_margin}:{viewport.top_margin}:shortest=1"
         )
 
         return FramingResult(

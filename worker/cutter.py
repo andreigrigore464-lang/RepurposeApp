@@ -12,7 +12,29 @@ from typing import Dict, Any, Optional, Tuple
 from framing.base import Viewport
 from framing.registry import get_framing_strategy
 
-FFMPEG_BIN = shutil.which("ffmpeg") or imageio_ffmpeg.get_ffmpeg_exe()
+def get_working_ffmpeg_bin() -> str:
+    """Finds a functional ffmpeg binary, falling back to imageio_ffmpeg if system binary has missing shared libs."""
+    candidates = []
+    sys_bin = shutil.which("ffmpeg")
+    if sys_bin:
+        candidates.append(sys_bin)
+    try:
+        bundled = imageio_ffmpeg.get_ffmpeg_exe()
+        if bundled and bundled not in candidates:
+            candidates.append(bundled)
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        try:
+            res = subprocess.run([candidate, "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=3)
+            if res.returncode == 0:
+                return candidate
+        except Exception:
+            continue
+    return shutil.which("ffmpeg") or "ffmpeg"
+
+FFMPEG_BIN = get_working_ffmpeg_bin()
 
 _HAS_NVENC: Optional[bool] = None
 
@@ -139,8 +161,8 @@ def render_reel(
         FFMPEG_BIN, "-y",
         "-v", "error",
         "-ss", str(start_sec),
-        "-t", str(duration),
         "-i", input_video,
+        "-t", str(duration),
         *filter_args,
         *vcodec_args,
         "-c:a", "aac",
