@@ -46,13 +46,14 @@ def detect_subject_x_center(
     detected_x_positions: List[float] = []
 
     # Attempt to use MediaPipe Face Detection for modern high-accuracy tracking
+    # model_selection=1 is optimized for full-body / distant subjects (up to 5 meters)
     use_mediapipe = False
     mp_detector = None
     try:
         import mediapipe as mp
         mp_detector = mp.solutions.face_detection.FaceDetection(
-            model_selection=0,
-            min_detection_confidence=0.5
+            model_selection=1,
+            min_detection_confidence=0.6
         )
         use_mediapipe = True
     except Exception:
@@ -82,27 +83,53 @@ def detect_subject_x_center(
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = mp_detector.process(rgb_frame)
             if results and results.detections:
-                # Find largest face (dominant subject)
                 best_face_x = None
-                best_area = 0.0
+                best_score = -1.0
                 for det in results.detections:
                     box = det.location_data.relative_bounding_box
-                    area = box.width * box.height
-                    if area > best_area:
-                        best_area = area
-                        # Bounding box center X
-                        best_face_x = box.xmin + (box.width / 2.0)
+                    face_center_x = box.xmin + (box.width / 2.0)
+                    face_center_y = box.ymin + (box.height / 2.0)
+                    area = max(0.001, box.width * box.height)
+
+                    # Suppress corner HUD / scoreboard elements (e.g. timer, score, logo)
+                    is_corner_hud = (face_center_x > 0.88 or face_center_x < 0.12) and (face_center_y < 0.18 or face_center_y > 0.85)
+                    hud_penalty = 0.05 if is_corner_hud else 1.0
+
+                    # Center-proximity score: favor subjects in the active action zone
+                    center_dist = abs(face_center_x - 0.5)
+                    score = area * (1.0 - center_dist * 0.6) * hud_penalty
+
+                    if score > best_score:
+                        best_score = score
+                        best_face_x = face_center_x
+
                 if best_face_x is not None:
                     detected_x_positions.append(max(0.0, min(1.0, best_face_x)))
+
         elif haar_cascade:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = haar_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=4, minSize=(60, 60))
+            # minNeighbors=6 reduces false positives from text/scoreboard digit boxes
+            faces = haar_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=6, minSize=(70, 70))
             if len(faces) > 0:
-                # Largest face by area
-                faces = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)
-                fx, fy, fw, fh = faces[0]
-                center_x = (fx + fw / 2.0) / float(w)
-                detected_x_positions.append(max(0.0, min(1.0, center_x)))
+                best_face_x = None
+                best_score = -1.0
+                for fx, fy, fw, fh in faces:
+                    face_center_x = (fx + fw / 2.0) / float(w)
+                    face_center_y = (fy + fh / 2.0) / float(h)
+                    area = (fw * fh) / float(w * h)
+
+                    is_corner_hud = (face_center_x > 0.88 or face_center_x < 0.12) and (face_center_y < 0.18 or face_center_y > 0.85)
+                    hud_penalty = 0.05 if is_corner_hud else 1.0
+
+                    center_dist = abs(face_center_x - 0.5)
+                    score = area * (1.0 - center_dist * 0.6) * hud_penalty
+
+                    if score > best_score:
+                        best_score = score
+                        best_face_x = face_center_x
+
+                if best_face_x is not None:
+                    detected_x_positions.append(max(0.0, min(1.0, best_face_x)))
 
         frame_idx += step
 
@@ -120,9 +147,12 @@ def detect_subject_x_center(
     # Compute robust median to reject transient outlier detections
     detected_x_positions.sort()
     mid = len(detected_x_positions) // 2
-    median_x = detected_x_positions[mid]
-    print(f"[smart_zoom] Detected subject focus at normalized X={median_x:.3f} across {len(detected_x_positions)} sample frames.")
-    return median_x
+    raw_median_x = detected_x_positions[mid]
+
+    # Cinematic safety bounds: clamp to [0.25, 0.75] to prevent panning onto HUD margins or edge walls
+    clamped_x = max(0.25, min(0.75, raw_median_x))
+    print(f"[smart_zoom] Detected subject focus at normalized X={clamped_x:.3f} (raw={raw_median_x:.3f}) across {len(detected_x_positions)} sample frames.")
+    return clamped_x
 
 class SmartZoomFraming:
     """

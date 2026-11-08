@@ -56,7 +56,7 @@ def select_hooks_with_llm(
             for fb in recent_feedback:
                 rating_str = "EXCELLENT / APPROVED" if fb.get("rating") in ["good", "yes"] else "REJECTED / NEEDS WORK"
                 comment = fb.get("comment", "").strip()
-                hook = fb.get("hookText", "").strip()
+                hook = (fb.get("hook_text") or fb.get("hookText") or "").strip()
                 if comment or hook:
                     detail = f"- [{rating_str}]"
                     if hook:
