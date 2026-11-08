@@ -2,11 +2,12 @@
 
 /**
  * Video Reel Player Component
- * Renders an HTML5 9:16 vertical video preview for short promo reels with download actions and subtitle export.
+ * Renders an HTML5 9:16 vertical video preview for short promo reels with download actions,
+ * subtitle export, and channel taste feedback poll for continuous AI learning.
  * System Layer: ui / review
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FormatOutputRecord } from "@/db/queries-format-outputs";
 import { ArticleRecord } from "@/db/queries-articles";
 
@@ -30,6 +31,28 @@ export function VideoReelPlayer({
   const srtContent = slots.srt_content as string | undefined;
 
   const [downloadingSrt, setDownloadingSrt] = useState(false);
+  const [vote, setVote] = useState<"yes" | "no" | null>(null);
+  const [comment, setComment] = useState("");
+  const [savingFeedback, setSavingFeedback] = useState(false);
+  const [savedConfirmation, setSavedConfirmation] = useState(false);
+
+  // Check if feedback was previously recorded for this reel
+  useEffect(() => {
+    fetch("/api/brand/reel-feedback")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.feedback)) {
+          const match = data.feedback.find(
+            (fb: any) => fb.format_output_id === formatOutput.id
+          );
+          if (match) {
+            setVote(match.rating);
+            if (match.comment) setComment(match.comment);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [formatOutput.id]);
 
   const handleDownloadSrt = () => {
     if (!srtContent) return;
@@ -47,6 +70,41 @@ export function VideoReelPlayer({
     } finally {
       setTimeout(() => setDownloadingSrt(false), 1500);
     }
+  };
+
+  const submitFeedback = async (selectedVote: "yes" | "no", userComment?: string) => {
+    setSavingFeedback(true);
+    setSavedConfirmation(false);
+    try {
+      const res = await fetch("/api/brand/reel-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          formatOutputId: formatOutput.id,
+          rating: selectedVote,
+          comment: userComment ?? comment,
+          hookText: hookText || article.title,
+        }),
+      });
+      if (res.ok) {
+        setSavedConfirmation(true);
+        setTimeout(() => setSavedConfirmation(false), 4000);
+      }
+    } catch (err) {
+      console.error("Failed to save reel feedback:", err);
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
+  const handleVote = (newVote: "yes" | "no") => {
+    setVote(newVote);
+    submitFeedback(newVote, comment);
+  };
+
+  const handleSaveComment = () => {
+    if (!vote) return;
+    submitFeedback(vote, comment);
   };
 
   return (
@@ -152,7 +210,82 @@ export function VideoReelPlayer({
           </div>
         )}
       </div>
+
+      {/* Channel Taste & Quality Feedback Poll */}
+      <div className="bg-app-subtle/30 border border-app-border rounded-xl p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <h4 className="text-xs font-semibold text-app-ink flex items-center gap-1.5">
+              <span>🧠</span>
+              <span>Hook & Framing Feedback</span>
+            </h4>
+            <p className="text-[11px] text-app-muted">
+              Did this clip capture a great moment? Your rating teaches future AI selections.
+            </p>
+          </div>
+
+          {/* Simple Yes/No Poll Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleVote("yes")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
+                vote === "yes"
+                  ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                  : "border border-app-border bg-app-surface text-app-ink hover:bg-emerald-50 hover:border-emerald-300"
+              }`}
+            >
+              <span>👍</span>
+              <span>Good Clip</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleVote("no")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
+                vote === "no"
+                  ? "bg-rose-600 text-white font-semibold shadow-xs"
+                  : "border border-app-border bg-app-surface text-app-ink hover:bg-rose-50 hover:border-rose-300"
+              }`}
+            >
+              <span>👎</span>
+              <span>Needs Work</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Optional feedback note */}
+        {vote && (
+          <div className="pt-2 border-t border-app-border/60 flex flex-col sm:flex-row gap-2 items-center">
+            <input
+              type="text"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder={
+                vote === "yes"
+                  ? "Optional note: What worked? (e.g. hilarious punchline, gripping hook)"
+                  : "Optional note: What failed? (e.g. cut off too early, hook was too dry, bad face crop)"
+              }
+              className="flex-1 w-full text-xs px-3 py-1.5 rounded border border-app-border bg-app-surface text-app-ink placeholder:text-app-muted focus:outline-none focus:border-app-ink"
+            />
+            <button
+              type="button"
+              disabled={savingFeedback}
+              onClick={handleSaveComment}
+              className="w-full sm:w-auto px-3.5 py-1.5 rounded bg-app-ink text-white text-xs font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors shadow-2xs whitespace-nowrap"
+            >
+              {savingFeedback ? "Saving..." : savedConfirmation ? "✓ Saved" : "Save Note"}
+            </button>
+          </div>
+        )}
+
+        {savedConfirmation && (
+          <p className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 pt-0.5">
+            <span>✓</span>
+            <span>Saved to channel taste memory. Gemini will adapt to this feedback on future jobs.</span>
+          </p>
+        )}
+      </div>
     </div>
   );
 }
-

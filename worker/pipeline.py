@@ -16,6 +16,7 @@ import yt_dlp
 from config import get_supabase_client, get_r2_client, R2_BUCKET_NAME, DEFAULT_DEVICE, DEFAULT_COMPUTE_TYPE, GEMINI_API_KEY
 from subtitles import group_words_into_phrases, generate_ass, generate_srt, hex_to_ass_color, parse_time_to_seconds
 from hook_selector import select_hooks_with_llm
+from audio_energy import compute_audio_energy_peaks
 from cutter import render_reel, extract_audio_for_transcription
 
 def run_job_pipeline(job: dict, on_progress=None):
@@ -176,6 +177,21 @@ def run_job_pipeline(job: dict, on_progress=None):
             full_transcript = " ".join(s["text"].strip() for s in segments)
             supabase.table("articles").update({"clean_text": full_transcript}).eq("id", article_id).execute()
 
+            # Analyze audio energy dynamics
+            audio_peaks = compute_audio_energy_peaks(audio_data, sr)
+            print(f"[pipeline] Detected {len(audio_peaks)} dynamic audio peaks (vocal excitement / punchline climaxes).")
+
+            # Load brand channel taste & feedback memory if available
+            channel_feedback = []
+            try:
+                b_res = supabase.table("brand_kits").select("custom_templates").eq("brand_id", brand_id).limit(1).maybe_single().execute()
+                if b_res and b_res.data and b_res.data.get("custom_templates"):
+                    channel_feedback = b_res.data["custom_templates"].get("reel_feedback", [])
+                    if channel_feedback:
+                        print(f"[pipeline] Loaded {len(channel_feedback)} channel feedback memory entries for brand {brand_id}.")
+            except Exception as fb_err:
+                print(f"[pipeline] Note: Could not load channel feedback memory ({fb_err}).")
+
             # Select hooks using Gemini
             if on_progress:
                 on_progress(status="selecting_hooks", progress_pct=50, stage="Detecting viral narrative hooks...")
@@ -184,7 +200,9 @@ def run_job_pipeline(job: dict, on_progress=None):
                 segments=segments,
                 clips_count=clips_count,
                 target_duration=target_duration,
-                gemini_api_key=GEMINI_API_KEY
+                gemini_api_key=GEMINI_API_KEY,
+                audio_peaks=audio_peaks,
+                channel_feedback=channel_feedback,
             )
 
         print(f"[pipeline] Selected {len(selected_clips)} hook clips.")

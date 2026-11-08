@@ -263,3 +263,49 @@ export async function deleteWorkflowById(
   return nextWorkflows;
 }
 
+export interface ReelFeedbackRecord {
+  id: string;
+  format_output_id: string;
+  rating: "yes" | "no";
+  comment?: string;
+  hook_text?: string;
+  created_at: string;
+}
+
+export async function getReelFeedback(brandId: string): Promise<ReelFeedbackRecord[]> {
+  const custom = await getBrandTemplates(brandId);
+  if (Array.isArray(custom.reel_feedback)) {
+    return custom.reel_feedback;
+  }
+  return [];
+}
+
+export async function saveReelFeedback(
+  brandId: string,
+  item: Omit<ReelFeedbackRecord, "id" | "created_at">
+): Promise<boolean> {
+  const current = await getBrandTemplates(brandId);
+  const existingList: ReelFeedbackRecord[] = Array.isArray(current.reel_feedback)
+    ? current.reel_feedback
+    : [];
+
+  const newEntry: ReelFeedbackRecord = {
+    id: `rf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    format_output_id: item.format_output_id,
+    rating: item.rating,
+    comment: item.comment,
+    hook_text: item.hook_text,
+    created_at: new Date().toISOString(),
+  };
+
+  // Replace existing feedback for the same format output if re-voted, else prepend
+  const filtered = existingList.filter((fb) => fb.format_output_id !== item.format_output_id);
+  const updatedList = [newEntry, ...filtered].slice(0, 50); // Keep latest 50
+
+  return updateBrandTemplates(brandId, {
+    ...current,
+    reel_feedback: updatedList,
+  });
+}
+
+
