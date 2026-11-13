@@ -41,5 +41,9 @@ __pycache__/
 supabase/.temp/
 .temp/
 
+# agent workspace prompt bundles & cache
+.agents/
+
+
 
 

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "inngest:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
     "db:verify": "tsx --env-file=.env.local src/db/verify-connection.ts",
     "registries:verify": "tsx src/registries/verify-registries.ts",
@@ -44,6 +46,7 @@
     "postcss": "^8.5.2",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.23.15",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^5.1.0"
   }
 }
