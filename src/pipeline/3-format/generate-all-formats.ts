@@ -34,9 +34,17 @@ export async function generateAllFormatsForArticle(
   const matrixFormats = getAllowedFormatsForInput(inputSource);
 
   // If enabledFormats is explicitly configured, filter to that subset
-  const allowedFormats = params.enabledFormats && params.enabledFormats.length > 0
+  let allowedFormats = params.enabledFormats && params.enabledFormats.length > 0
     ? matrixFormats.filter((fmt) => params.enabledFormats!.includes(fmt))
     : matrixFormats;
+
+  // Fallback: if intersection is empty (e.g. video-reel was passed for a written article), fallback to matrix
+  if (allowedFormats.length === 0) {
+    console.warn(
+      `[format] article=${params.articleId} enabledFormats had no valid text formats. Falling back to default article matrix.`
+    );
+    allowedFormats = matrixFormats;
+  }
 
   const records: FormatOutputRecord[] = [];
 

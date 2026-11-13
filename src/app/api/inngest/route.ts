@@ -7,12 +7,10 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/jobs/inngest-client";
 import { pollFeedsJob } from "@/jobs/poll-feeds-job";
-import { generateDigestJob } from "@/jobs/generate-digest-job";
-import { generateFormatsJob } from "@/jobs/generate-formats-job";
-import { adaptPlatformsJob } from "@/jobs/adapt-platforms-job";
+import { articlePipelineJob } from "@/jobs/article-pipeline-job";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [pollFeedsJob, generateDigestJob, generateFormatsJob, adaptPlatformsJob],
+  functions: [pollFeedsJob, articlePipelineJob],
 });
 

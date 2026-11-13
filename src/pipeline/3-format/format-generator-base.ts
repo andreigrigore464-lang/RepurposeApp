@@ -29,15 +29,12 @@ export interface FormatGenerationResult<T> {
 }
 
 /**
- * Formats digest items into a clear bulleted list with IDs and source text for the LLM prompt.
+ * Formats digest items into a clear bulleted list with IDs and factual text for the LLM prompt.
+ * Source sentences are omitted to maximize inference speed and conserve token bandwidth.
  */
 export function serializeDigestForPrompt(items: DigestItem[]): string {
   return items
-    .map(
-      (item) => `[ID: ${item.id}] (${item.kind})
-Text: ${item.text}
-Source Sentence(s): ${item.source_sentences.join(" ")}`
-    )
+    .map((item) => `[ID: ${item.id}] (${item.kind})\n${item.text}`)
     .join("\n\n");
 }
 

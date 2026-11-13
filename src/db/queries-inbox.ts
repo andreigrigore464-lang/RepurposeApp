@@ -51,35 +51,32 @@ export async function getInboxArticlesForBrand(brandId: string): Promise<InboxAr
   const articleIds = articles.map((a: any) => a.id);
   if (articleIds.length === 0) return [];
 
-  // Fetch all completed digests for these articles
-  const { data: digests } = await supabase
-    .from("digests")
-    .select("article_id, items, status")
-    .in("article_id", articleIds)
-    .eq("status", "completed");
-
-  // Fetch all format outputs for these articles
-  const { data: formatOutputs } = await supabase
-    .from("format_outputs")
-    .select("id, article_id, format_kind, slots_data, status")
-    .in("article_id", articleIds)
-    .order("created_at", { ascending: true });
-
-  // Fetch video render jobs safely (graceful fallback if table is not yet migrated)
-  let videoJobs: any[] = [];
-  try {
-    const { data: vjData, error: vjErr } = await supabase
+  // Fetch completed digests, format outputs, and video render jobs concurrently
+  const [digestsRes, formatOutputsRes, vjRes] = await Promise.all([
+    supabase
+      .from("digests")
+      .select("article_id, items, status")
+      .in("article_id", articleIds)
+      .eq("status", "completed"),
+    supabase
+      .from("format_outputs")
+      .select("id, article_id, format_kind, slots_data, status")
+      .in("article_id", articleIds)
+      .order("created_at", { ascending: true }),
+    supabase
       .from("video_render_jobs")
       .select("article_id, status, progress_pct, stage_message, created_at")
       .in("article_id", articleIds)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .then(
+        (res) => res,
+        () => ({ data: null, error: null })
+      ),
+  ]);
 
-    if (!vjErr && vjData) {
-      videoJobs = vjData;
-    }
-  } catch {
-    // Ignored if video_render_jobs table does not exist
-  }
+  const digests = digestsRes.data;
+  const formatOutputs = formatOutputsRes.data;
+  const videoJobs = (vjRes && !vjRes.error && vjRes.data) ? vjRes.data : [];
 
   const digestMap = new Map<string, number>();
   for (const d of digests || []) {

@@ -15,6 +15,10 @@ const BaseElementSchema = z.object({
   height: z.number().positive(),
   rotation: z.number().optional(),
   opacity: z.number().min(0).max(1).optional(),
+  shadow_color: z.string().optional(),
+  shadow_blur: z.number().min(0).optional(),
+  shadow_offset_x: z.number().optional(),
+  shadow_offset_y: z.number().optional(),
 });
 
 export const TextElementSchema = BaseElementSchema.extend({
@@ -24,6 +28,9 @@ export const TextElementSchema = BaseElementSchema.extend({
   font_family: z.string().optional(),
   font_size: z.number().positive(),
   font_weight: z.enum(["normal", "bold", "600", "700", "800"]).optional(),
+  font_style: z.enum(["normal", "italic"]).optional(),
+  text_decoration: z.enum(["none", "underline", "line-through"]).optional(),
+  text_transform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
   line_height: z.number().positive().optional(),
   letter_spacing: z.number().optional(),
   text_align: z.enum(["left", "center", "right"]).optional(),
@@ -39,15 +46,18 @@ export const ImageElementSchema = BaseElementSchema.extend({
   default_url: z.string().optional(),
   border_radius: z.number().min(0).optional(),
   fit: z.enum(["cover", "contain"]).optional(),
+  stroke: z.string().optional(),
+  stroke_width: z.number().min(0).optional(),
 });
 export type ImageElement = z.infer<typeof ImageElementSchema>;
 
 export const ShapeElementSchema = BaseElementSchema.extend({
   type: z.literal("shape"),
-  shape_type: z.enum(["rect", "circle", "line"]),
+  shape_type: z.enum(["rect", "circle", "line", "triangle", "star", "hexagon", "arrow", "badge"]),
   fill: z.string().optional(),
   stroke: z.string().optional(),
   stroke_width: z.number().min(0).optional(),
+  stroke_dash: z.enum(["solid", "dashed", "dotted"]).optional(),
   border_radius: z.number().min(0).optional(),
 });
 export type ShapeElement = z.infer<typeof ShapeElementSchema>;
@@ -56,7 +66,15 @@ export const VideoElementSchema = BaseElementSchema.extend({
   type: z.literal("video"),
   slot: z.string().optional(), // "source_video"
   framing_mode: z
-    .enum(["ai_face_focus", "manual_crop", "cover", "contain", "blurred_stack"])
+    .enum([
+      "dynamic_tracking",
+      "subject_tracking",
+      "ai_face_focus",
+      "manual_crop",
+      "cover",
+      "contain",
+      "blurred_stack",
+    ])
     .optional(),
   zoom: z.number().min(1).max(3).optional(),
   crop_x: z.number().optional(),

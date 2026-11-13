@@ -17,6 +17,7 @@ import { FormatOutputRecord } from "../db/queries-format-outputs";
 export interface PipelineExecutionOptions {
   workflowConfig?: WorkflowRuleConfig;
   preferredImageUrl?: string;
+  force?: boolean;
 }
 
 export interface PipelineExecutionResult {
@@ -28,35 +29,51 @@ export interface PipelineExecutionResult {
   error?: string;
 }
 
-const activePipelines = new Set<string>();
-
 export async function runArticlePipeline(
   articleId: string,
   options?: PipelineExecutionOptions
 ): Promise<PipelineExecutionResult> {
-  if (activePipelines.has(articleId)) {
-    console.log(`[pipeline] Article ${articleId} is already running. Skipping duplicate concurrent run.`);
-    return {
-      articleId,
-      digestId: "",
-      formatsCount: 0,
-      variantsCount: 0,
-      success: true,
-    };
-  }
-
-  activePipelines.add(articleId);
-
   try {
+    // 0. Atomic DB-level lock guard with stale-lock breaker (2 min) and force override
+    const { data: existingArticle, error: fetchErr } = await supabase
+      .from("articles")
+      .select("id, brand_id, status, updated_at")
+      .eq("id", articleId)
+      .single();
+
+    if (fetchErr || !existingArticle) {
+      throw new Error(`Article "${articleId}" not found.`);
+    }
+
+    const isStale =
+      existingArticle.status === "processing" &&
+      Date.now() - new Date(existingArticle.updated_at).getTime() > 120_000;
+
+    if (existingArticle.status === "processing" && !options?.force && !isStale) {
+      console.log(
+        `[pipeline] Article ${articleId} is actively being processed. Skipping duplicate concurrent run.`
+      );
+      return {
+        articleId,
+        digestId: "",
+        formatsCount: 0,
+        variantsCount: 0,
+        success: true,
+      };
+    }
+
+    // Set article status to processing
+    await supabase
+      .from("articles")
+      .update({ status: "processing", updated_at: new Date().toISOString() })
+      .eq("id", articleId);
+
     console.log(`[pipeline] Starting full execution for article=${articleId}`);
 
     const article = await getArticleById(articleId);
     if (!article) {
       throw new Error(`Article "${articleId}" not found.`);
     }
-
-    // Set article status to processing
-    await supabase.from("articles").update({ status: "processing" }).eq("id", articleId);
 
     const brandKit = await getBrandKitByBrandId(article.brand_id);
     const voiceGuidelines = brandKit?.voice_guidelines || undefined;
@@ -129,7 +146,13 @@ export async function runArticlePipeline(
         effectiveConfig = workflowSettings.feedOverrides[article.feed_id];
       }
     } else if (workflowSettings.workflows && workflowSettings.workflows.length > 0) {
-      const firstActive = workflowSettings.workflows.find((w) => w.isActive);
+      // Find the first active workflow matching the article's source type (ignore video-reel only workflows for written articles)
+      const firstActive = workflowSettings.workflows.find(
+        (w) =>
+          w.isActive &&
+          w.sourceType !== "youtube" &&
+          (!w.enabledFormats || !w.enabledFormats.every((f) => f === "video-reel"))
+      );
       if (firstActive) {
         effectiveConfig = {
           enabledFormats: firstActive.enabledFormats,
@@ -139,6 +162,11 @@ export async function runArticlePipeline(
       }
     } else if (workflowSettings.defaultWorkflow) {
       effectiveConfig = workflowSettings.defaultWorkflow;
+    }
+
+    // Safety fallback: ensure at least default text post formats are enabled
+    if (!effectiveConfig.enabledFormats || effectiveConfig.enabledFormats.length === 0) {
+      effectiveConfig.enabledFormats = ["text-post", "thread", "card", "carousel"];
     }
 
     // 2. Stage 3: Multi-Format Synthesis
@@ -196,7 +224,5 @@ export async function runArticlePipeline(
       .update({ status: "failed", updated_at: new Date().toISOString() })
       .eq("id", articleId);
     throw err;
-  } finally {
-    activePipelines.delete(articleId);
   }
 }

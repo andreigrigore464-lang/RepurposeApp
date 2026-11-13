@@ -89,3 +89,17 @@ Every file must be easy to open, read, understand, and debug.
 - A single file, `src/lib/current-context.ts`, provides the hardcoded default `account_id` and `brand_id` seeded by a database migration.
 - **This file is the single seam where authentication will later be injected.** No other code may assume a single user or bypass foreign keys.
 
+---
+
+## 6. Operational Discipline & Scope Control
+
+- **Strict YAGNI & Scope Discipline:**
+  - Implement only what is explicitly requested.
+  - Never add speculative features, preemptive abstractions, or extra configuration options.
+  - Before expanding scope or modifying files outside the immediate task, propose it and obtain explicit user consent.
+  - Calibrate engineering depth to the project's current phase (lean, direct MVP code over enterprise plumbing). All work must be directly justifiable.
+- **No Sycophancy & Root-Cause Remediation:**
+  - Never apologize, flatter, or make polite excuses.
+  - State the cause of an error plainly and deliver the fix directly.
+  - Mistakes are technical signals: if an error was caused by conflicting, ambiguous, or missing instructions in `docs/` or `AGENTS.md`, identify the exact documentation gap and propose the specific update to prevent recurrence.
+

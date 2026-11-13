@@ -196,6 +196,7 @@ export function ElementPropertiesPanel({
               }
               className="w-full rounded border border-app-border bg-app-subtle/40 px-2.5 py-1 text-app-ink text-xs"
             >
+              <option value="dynamic_tracking">AI Subject Tracking (Smooth Dynamic Pan)</option>
               <option value="ai_face_focus">AI Face Auto-Focus (Smart Speaker Center)</option>
               <option value="blurred_stack">Blurred Ambient Stack (Background)</option>
               <option value="cover">Fill & Center Crop</option>

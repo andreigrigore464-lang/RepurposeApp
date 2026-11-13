@@ -11,7 +11,7 @@ import { generateArticleFingerprint } from "./deduplicate-article";
 import { findArticleByUrlOrHash, insertArticle, ArticleRecord } from "../../db/queries-articles";
 import { updateFeedLastPolled, FeedRecord } from "../../db/queries-feeds";
 import { getWorkflowSettings } from "../../db/queries-brand-kit";
-import { runArticlePipeline } from "../run-article-pipeline";
+import { dispatchArticlePipeline } from "../../jobs/dispatch-pipeline";
 import { createVideoRenderJob } from "../../db/queries-video-jobs";
 
 export interface PollFeedResult {
@@ -181,11 +181,21 @@ export async function pollFeedAndIngestArticles(feed: FeedRecord): Promise<PollF
           },
         });
       } else {
-        console.log(`[pipeline:queue] Processing queued article=${article.id} ("${article.title}")`);
-        await runArticlePipeline(article.id);
+        console.log(`[pipeline:queue] Dispatching background pipeline for article=${article.id} ("${article.title}")`);
+        await dispatchArticlePipeline({
+          articleId: article.id,
+          brandId: feed.brand_id,
+          options: matchedWorkflow
+            ? {
+                workflowConfig: {
+                  enabledFormats: matchedWorkflow.enabledFormats,
+                  cardTemplateId: matchedWorkflow.cardTemplateId,
+                  carouselTemplateId: matchedWorkflow.carouselTemplateId,
+                },
+              }
+            : undefined,
+        });
       }
-      // Brief 2-second pacing between items
-      await new Promise((r) => setTimeout(r, 2000));
     } catch (pipeErr) {
       console.error(`[pipeline] Auto-run error for item=${article.id}:`, pipeErr);
     }

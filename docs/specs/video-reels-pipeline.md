@@ -125,7 +125,13 @@ The worker runs independently on local machines or Google Colab (with free NVIDI
 - [`config.py`](file:///d:/Work/RepurposeApp/worker/config.py): Environment credential loader supporting `.env.local` files and Google Colab native Secrets (`google.colab.userdata`). Auto-detects compute device (`cuda` with `float16` when GPU available, else `cpu` with `int8`).
 - [`subtitles.py`](file:///d:/Work/RepurposeApp/worker/subtitles.py): Formats Advanced SubStation Alpha (`.ass`) karaoke subtitles with active-word highlight coloring (`{\c&H00FFFFFF&}`), line breaks, font families, and clean `.srt` export.
 - [`hook_selector.py`](file:///d:/Work/RepurposeApp/worker/hook_selector.py): Prompts Gemini (or falls back to heuristics) to detect self-contained narrative climaxes (30–60s) with complete-thought resolution.
-- [`cutter.py`](file:///d:/Work/RepurposeApp/worker/cutter.py): Cuts video snippets and applies FFmpeg filter graph for 9:16 vertical layout (crop or blurred pad) and burns `.ass` subtitles.
+- [`cutter.py`](file:///d:/Work/RepurposeApp/worker/cutter.py): Cuts video snippets, compiles declarative 9:16 vertical layout framing filter graphs, and burns `.ass` subtitles in a single pass.
+- [`worker/framing/`](file:///d:/Work/RepurposeApp/worker/framing/): Pluggable framing strategies:
+  - `dynamic_tracking.py`: Multi-modal subject tracking (humans, groups, animals, objects) with deadband stabilization and smooth S-curve panning.
+  - `smart_zoom.py`: Static speaker focal centering per clip window.
+  - `blurred_background.py`: Ambient blurred stack.
+  - `center_crop.py`: Fixed vertical center crop.
+  - `registry.py`: Declarative framing registry adhering to AGENTS.md.
 - [`pipeline.py`](file:///d:/Work/RepurposeApp/worker/pipeline.py): Downloads media, transcribes with `faster-whisper`, cuts reels, uploads finished MP4s to Cloudflare R2, inserts rows into `format_outputs`, and **deletes the raw source video from R2** (ephemeral media cost-saving rule).
 - [`main.py`](file:///d:/Work/RepurposeApp/worker/main.py): Polling daemon loop polling `video_render_jobs` where `status = 'queued'`.
 - [`colab_runner.ipynb`](file:///d:/Work/RepurposeApp/worker/colab_runner.ipynb): 1-click Google Colab notebook for free T4 GPU execution using encrypted Colab Secrets (🔑 tab).

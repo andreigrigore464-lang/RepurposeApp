@@ -20,7 +20,7 @@ import {
 import { BrandTheme } from "@/render/layout/resolve-slots";
 import { SnapLine } from "./types";
 import { calculateSnaps } from "./snap-calculator";
-import { getSampleText } from "./layer-utils";
+import { getSampleText, getShapePoints } from "./layer-utils";
 
 interface CanvasStageProps {
   width: number;
@@ -138,6 +138,7 @@ export function CanvasStage({
           y: Math.round(node.y()),
           width: newWidth,
           height: newHeight,
+          rotation: Math.round(node.rotation() || 0),
         };
       }
       return item;
@@ -191,6 +192,107 @@ export function CanvasStage({
 
             if (el.type === "shape") {
               const shape = el as ShapeElement;
+              const shapeType = shape.shape_type || "rect";
+              const strokeColor = isSelected ? "#2563eb" : shape.stroke;
+              const strokeW = isSelected ? 2 : shape.stroke_width || 0;
+              const dashArr =
+                shape.stroke_dash === "dashed"
+                  ? [10, 8]
+                  : shape.stroke_dash === "dotted"
+                  ? [4, 6]
+                  : undefined;
+              const shadowProps = {
+                shadowColor: shape.shadow_color,
+                shadowBlur: shape.shadow_blur || 0,
+                shadowOffsetX: shape.shadow_offset_x || 0,
+                shadowOffsetY: shape.shadow_offset_y || 0,
+                shadowOpacity: shape.shadow_color ? 0.35 : 0,
+              };
+
+              const commonProps = {
+                id: shape.id,
+                draggable: true,
+                rotation: shape.rotation || 0,
+                opacity: shape.opacity ?? 1,
+                onClick: () => onSelect(shape.id),
+                onTap: () => onSelect(shape.id),
+                onDragMove: (e: any) => handleDragMove(shape, e),
+                onDragEnd: (e: any) => handleDragEnd(shape, e),
+                onTransformEnd: (e: any) => handleTransformEnd(shape, e),
+                ...shadowProps,
+              };
+
+              if (shapeType === "circle") {
+                const radius = Math.min(shape.width, shape.height) / 2;
+                return (
+                  <Circle
+                    key={shape.id}
+                    ref={(node) => {
+                      if (node) shapeRefs.current.set(shape.id, node as any);
+                      else shapeRefs.current.delete(shape.id);
+                    }}
+                    x={shape.x + radius}
+                    y={shape.y + radius}
+                    radius={radius}
+                    fill={shape.fill || theme.secondaryColor}
+                    stroke={strokeColor}
+                    strokeWidth={strokeW}
+                    dash={dashArr}
+                    {...commonProps}
+                  />
+                );
+              }
+
+              if (shapeType === "line") {
+                return (
+                  <Line
+                    key={shape.id}
+                    ref={(node) => {
+                      if (node) shapeRefs.current.set(shape.id, node as any);
+                      else shapeRefs.current.delete(shape.id);
+                    }}
+                    points={[shape.x, shape.y, shape.x + shape.width, shape.y + shape.height]}
+                    stroke={shape.stroke || shape.fill || theme.secondaryColor}
+                    strokeWidth={shape.stroke_width || 3}
+                    dash={dashArr}
+                    {...commonProps}
+                  />
+                );
+              }
+
+              if (
+                shapeType === "triangle" ||
+                shapeType === "star" ||
+                shapeType === "hexagon" ||
+                shapeType === "arrow" ||
+                shapeType === "badge"
+              ) {
+                const points = getShapePoints(
+                  shapeType,
+                  shape.x,
+                  shape.y,
+                  shape.width,
+                  shape.height
+                );
+                return (
+                  <Line
+                    key={shape.id}
+                    ref={(node) => {
+                      if (node) shapeRefs.current.set(shape.id, node as any);
+                      else shapeRefs.current.delete(shape.id);
+                    }}
+                    points={points}
+                    closed
+                    fill={shape.fill || theme.secondaryColor}
+                    stroke={strokeColor}
+                    strokeWidth={strokeW}
+                    dash={dashArr}
+                    {...commonProps}
+                  />
+                );
+              }
+
+              // Default: Rect
               return (
                 <Rect
                   key={shape.id}
@@ -198,33 +300,37 @@ export function CanvasStage({
                     if (node) shapeRefs.current.set(shape.id, node);
                     else shapeRefs.current.delete(shape.id);
                   }}
-                  id={shape.id}
                   x={shape.x}
                   y={shape.y}
                   width={shape.width}
                   height={shape.height}
                   fill={shape.fill || theme.secondaryColor}
-                  stroke={isSelected ? "#2563eb" : shape.stroke}
-                  strokeWidth={isSelected ? 2 : shape.stroke_width || 0}
+                  stroke={strokeColor}
+                  strokeWidth={strokeW}
                   cornerRadius={shape.border_radius || 0}
-                  opacity={shape.opacity ?? 1}
-                  draggable
-                  onClick={() => onSelect(shape.id)}
-                  onTap={() => onSelect(shape.id)}
-                  onDragMove={(e) => handleDragMove(shape, e)}
-                  onDragEnd={(e) => handleDragEnd(shape, e)}
-                  onTransformEnd={(e) => handleTransformEnd(shape, e)}
+                  dash={dashArr}
+                  {...commonProps}
                 />
               );
             }
 
             if (el.type === "text") {
               const text = el as TextElement;
-              const displayText = getSampleText(text);
+              let displayText = getSampleText(text);
+              if (text.text_transform === "uppercase") displayText = displayText.toUpperCase();
+              else if (text.text_transform === "lowercase") displayText = displayText.toLowerCase();
+              else if (text.text_transform === "capitalize")
+                displayText = displayText.replace(/\b\w/g, (c) => c.toUpperCase());
+
               const fontFamily =
                 text.font_family === "Playfair Display"
                   ? theme.fontHeading
                   : text.font_family || theme.fontBody;
+
+              const fontStyles: string[] = [];
+              if (text.font_weight === "bold") fontStyles.push("bold");
+              if (text.font_style === "italic") fontStyles.push("italic");
+              const fontStyle = fontStyles.join(" ") || "normal";
 
               return (
                 <KonvaText
@@ -241,11 +347,24 @@ export function CanvasStage({
                   text={displayText}
                   fontSize={text.font_size}
                   fontFamily={fontFamily}
-                  fontStyle={text.font_weight === "bold" ? "bold" : "normal"}
+                  fontStyle={fontStyle}
+                  textDecoration={
+                    text.text_decoration === "underline"
+                      ? "underline"
+                      : text.text_decoration === "line-through"
+                      ? "line-through"
+                      : ""
+                  }
                   fill={text.color || theme.textColor}
                   align={text.text_align || "left"}
                   lineHeight={text.line_height || 1.3}
                   opacity={text.opacity ?? 1}
+                  rotation={text.rotation || 0}
+                  shadowColor={text.shadow_color}
+                  shadowBlur={text.shadow_blur || 0}
+                  shadowOffsetX={text.shadow_offset_x || 0}
+                  shadowOffsetY={text.shadow_offset_y || 0}
+                  shadowOpacity={text.shadow_color ? 0.35 : 0}
                   draggable
                   onClick={() => onSelect(text.id)}
                   onTap={() => onSelect(text.id)}

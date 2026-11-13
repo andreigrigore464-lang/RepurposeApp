@@ -9,7 +9,7 @@ import { z } from "zod";
 import { ingestManualUrl } from "@/pipeline/1-ingest/ingest-manual-url";
 import { ingestRawText } from "@/pipeline/1-ingest/ingest-raw-text";
 import { getCurrentContext } from "@/lib/current-context";
-import { runArticlePipeline } from "@/pipeline/run-article-pipeline";
+import { dispatchArticlePipeline } from "@/jobs/dispatch-pipeline";
 
 const IngestRequestSchema = z.object({
   url: z.string().url().optional(),
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       throw new Error("No URL or text provided.");
     }
 
-    // If new article, execute the full repurposing pipeline with supplied workflow rules
+    // If new article, dispatch the full repurposing pipeline asynchronously
     if (!result.isDuplicate) {
       const workflowConfig = parsed.data.workflowConfig
         ? {
@@ -76,9 +76,13 @@ export async function POST(req: Request) {
           }
         : undefined;
 
-      await runArticlePipeline(result.article.id, {
-        workflowConfig,
-        preferredImageUrl: parsed.data.preferredImageUrl,
+      await dispatchArticlePipeline({
+        articleId: result.article.id,
+        brandId,
+        options: {
+          workflowConfig,
+          preferredImageUrl: parsed.data.preferredImageUrl,
+        },
       });
     }
 
@@ -87,7 +91,7 @@ export async function POST(req: Request) {
       articleId: result.article.id,
       title: result.article.title,
       isDuplicate: result.isDuplicate,
-      status: result.isDuplicate ? result.article.status : "drafted",
+      status: result.isDuplicate ? result.article.status : "processing",
     });
   } catch (err) {
     console.error("[ingest] API error:", err);

@@ -93,7 +93,9 @@ export async function POST(req: NextRequest) {
       let resolvedFraming = "smart_zoom";
       if (videoEl?.framing_mode) {
         const fm = String(videoEl.framing_mode);
-        if (fm === "blurred_stack" || fm === "contain" || fm === "blurred_background") {
+        if (fm === "dynamic_tracking" || fm === "subject_tracking" || fm === "ai_tracking") {
+          resolvedFraming = "dynamic_tracking";
+        } else if (fm === "blurred_stack" || fm === "contain" || fm === "blurred_background") {
           resolvedFraming = "blurred_background";
         } else if (fm === "cover" || fm === "center_crop") {
           resolvedFraming = "center_crop";

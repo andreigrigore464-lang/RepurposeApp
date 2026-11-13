@@ -6,6 +6,19 @@
  */
 
 import { supabase } from "./client";
+import {
+  getUserTemplates as getTemplatesFromRelational,
+  saveUserTemplate as saveTemplateToRelational,
+  saveUserTemplates as saveTemplatesToRelational,
+} from "./queries-templates";
+import {
+  listWorkflowsForBrand,
+  upsertWorkflowRecord,
+  deleteWorkflowRecord,
+  WorkflowRecord,
+} from "./queries-workflows";
+
+export type { WorkflowRecord };
 
 export interface UserTemplateRecord {
   id: string;
@@ -15,27 +28,6 @@ export interface UserTemplateRecord {
   aspectRatio: "square" | "portrait" | "vertical";
   updatedAt: string;
   template: any;
-}
-
-export interface WorkflowRecord {
-  id: string;
-  name: string;
-  isActive: boolean;
-  sourceType?: "article" | "youtube";
-  feedId?: string;
-  feedUrl?: string;
-  feedTitle?: string;
-  pollIntervalMinutes?: number;
-  enabledFormats: string[];
-  cardTemplateId?: string;
-  carouselTemplateId?: string;
-  videoReelTemplateId?: string;
-  targetClipsCount?: number;
-  targetDuration?: "15-30" | "30-60" | "60-90";
-  language?: string;
-  vocabularyHint?: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface WorkflowRuleConfig {
@@ -159,6 +151,15 @@ export async function updateBrandTemplates(
 }
 
 export async function getUserTemplates(brandId: string): Promise<UserTemplateRecord[]> {
+  try {
+    const fromRelational = await getTemplatesFromRelational(brandId);
+    if (fromRelational.length > 0) {
+      return fromRelational;
+    }
+  } catch (err) {
+    console.warn(`[db:templates] Relational query error, falling back to JSONB:`, err);
+  }
+
   const custom = await getBrandTemplates(brandId);
   if (Array.isArray(custom.templates)) {
     return custom.templates;
@@ -170,14 +171,29 @@ export async function saveUserTemplates(
   brandId: string,
   templates: UserTemplateRecord[]
 ): Promise<boolean> {
-  const current = await getBrandTemplates(brandId);
-  return updateBrandTemplates(brandId, {
-    ...current,
-    templates,
-  });
+  try {
+    await saveTemplatesToRelational(brandId, templates);
+    return true;
+  } catch (err) {
+    console.warn(`[db:templates] Relational save error, falling back to JSONB:`, err);
+    const current = await getBrandTemplates(brandId);
+    return updateBrandTemplates(brandId, {
+      ...current,
+      templates,
+    });
+  }
 }
 
 export async function getWorkflowSettings(brandId: string): Promise<BrandWorkflowSettings> {
+  try {
+    const workflows = await listWorkflowsForBrand(brandId);
+    if (workflows.length > 0) {
+      return { workflows };
+    }
+  } catch (err) {
+    console.warn(`[db:workflows] Relational query error, falling back to JSONB:`, err);
+  }
+
   const custom = await getBrandTemplates(brandId);
   if (custom.workflow && Array.isArray(custom.workflow.workflows)) {
     return {
@@ -218,49 +234,69 @@ export async function saveWorkflowSettings(
   brandId: string,
   settings: BrandWorkflowSettings
 ): Promise<boolean> {
-  const current = await getBrandTemplates(brandId);
-  return updateBrandTemplates(brandId, {
-    ...current,
-    workflow: settings,
-  });
+  try {
+    for (const wf of settings.workflows || []) {
+      await upsertWorkflowRecord(brandId, wf);
+    }
+    return true;
+  } catch (err) {
+    console.warn(`[db:workflows] Relational save error, falling back to JSONB:`, err);
+    const current = await getBrandTemplates(brandId);
+    return updateBrandTemplates(brandId, {
+      ...current,
+      workflow: settings,
+    });
+  }
 }
 
 export async function upsertWorkflow(
   brandId: string,
   workflow: WorkflowRecord
 ): Promise<WorkflowRecord[]> {
-  const currentSettings = await getWorkflowSettings(brandId);
-  const existingIdx = currentSettings.workflows.findIndex((w) => w.id === workflow.id);
+  try {
+    await upsertWorkflowRecord(brandId, workflow);
+    return await listWorkflowsForBrand(brandId);
+  } catch (err) {
+    console.warn(`[db:workflows] Relational upsert error, falling back to JSONB:`, err);
+    const currentSettings = await getWorkflowSettings(brandId);
+    const existingIdx = currentSettings.workflows.findIndex((w) => w.id === workflow.id);
 
-  let nextWorkflows: WorkflowRecord[];
-  if (existingIdx >= 0) {
-    nextWorkflows = [...currentSettings.workflows];
-    nextWorkflows[existingIdx] = { ...workflow, updatedAt: new Date().toISOString() };
-  } else {
-    nextWorkflows = [workflow, ...currentSettings.workflows];
+    let nextWorkflows: WorkflowRecord[];
+    if (existingIdx >= 0) {
+      nextWorkflows = [...currentSettings.workflows];
+      nextWorkflows[existingIdx] = { ...workflow, updatedAt: new Date().toISOString() };
+    } else {
+      nextWorkflows = [workflow, ...currentSettings.workflows];
+    }
+
+    await saveWorkflowSettings(brandId, {
+      ...currentSettings,
+      workflows: nextWorkflows,
+    });
+
+    return nextWorkflows;
   }
-
-  await saveWorkflowSettings(brandId, {
-    ...currentSettings,
-    workflows: nextWorkflows,
-  });
-
-  return nextWorkflows;
 }
 
 export async function deleteWorkflowById(
   brandId: string,
   workflowId: string
 ): Promise<WorkflowRecord[]> {
-  const currentSettings = await getWorkflowSettings(brandId);
-  const nextWorkflows = currentSettings.workflows.filter((w) => w.id !== workflowId);
+  try {
+    await deleteWorkflowRecord(brandId, workflowId);
+    return await listWorkflowsForBrand(brandId);
+  } catch (err) {
+    console.warn(`[db:workflows] Relational delete error, falling back to JSONB:`, err);
+    const currentSettings = await getWorkflowSettings(brandId);
+    const nextWorkflows = currentSettings.workflows.filter((w) => w.id !== workflowId);
 
-  await saveWorkflowSettings(brandId, {
-    ...currentSettings,
-    workflows: nextWorkflows,
-  });
+    await saveWorkflowSettings(brandId, {
+      ...currentSettings,
+      workflows: nextWorkflows,
+    });
 
-  return nextWorkflows;
+    return nextWorkflows;
+  }
 }
 
 export interface ReelFeedbackRecord {
@@ -273,6 +309,25 @@ export interface ReelFeedbackRecord {
 }
 
 export async function getReelFeedback(brandId: string): Promise<ReelFeedbackRecord[]> {
+  const { data, error } = await supabase
+    .from("reel_feedback")
+    .select("*")
+    .eq("brand_id", brandId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (!error && data && data.length > 0) {
+    return data.map((d) => ({
+      id: d.id,
+      format_output_id: d.format_output_id,
+      rating: d.rating as "yes" | "no",
+      comment: d.comment || undefined,
+      hook_text: d.hook_text || undefined,
+      created_at: d.created_at,
+    }));
+  }
+
+  // Fallback to legacy brand_kits
   const custom = await getBrandTemplates(brandId);
   if (Array.isArray(custom.reel_feedback)) {
     return custom.reel_feedback;
@@ -284,28 +339,41 @@ export async function saveReelFeedback(
   brandId: string,
   item: Omit<ReelFeedbackRecord, "id" | "created_at">
 ): Promise<boolean> {
-  const current = await getBrandTemplates(brandId);
-  const existingList: ReelFeedbackRecord[] = Array.isArray(current.reel_feedback)
-    ? current.reel_feedback
-    : [];
-
-  const newEntry: ReelFeedbackRecord = {
-    id: `rf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  const { error } = await supabase.from("reel_feedback").insert({
+    brand_id: brandId,
     format_output_id: item.format_output_id,
     rating: item.rating,
-    comment: item.comment,
-    hook_text: item.hook_text,
+    comment: item.comment || null,
+    hook_text: item.hook_text || null,
     created_at: new Date().toISOString(),
-  };
-
-  // Replace existing feedback for the same format output if re-voted, else prepend
-  const filtered = existingList.filter((fb) => fb.format_output_id !== item.format_output_id);
-  const updatedList = [newEntry, ...filtered].slice(0, 50); // Keep latest 50
-
-  return updateBrandTemplates(brandId, {
-    ...current,
-    reel_feedback: updatedList,
   });
+
+  if (error) {
+    console.warn(`[db:reel_feedback] Failed to insert relational feedback, falling back to JSONB:`, error.message);
+    const current = await getBrandTemplates(brandId);
+    const existingList: ReelFeedbackRecord[] = Array.isArray(current.reel_feedback)
+      ? current.reel_feedback
+      : [];
+
+    const newEntry: ReelFeedbackRecord = {
+      id: `rf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      format_output_id: item.format_output_id,
+      rating: item.rating,
+      comment: item.comment,
+      hook_text: item.hook_text,
+      created_at: new Date().toISOString(),
+    };
+
+    const filtered = existingList.filter((fb) => fb.format_output_id !== item.format_output_id);
+    const updatedList = [newEntry, ...filtered].slice(0, 50);
+
+    return updateBrandTemplates(brandId, {
+      ...current,
+      reel_feedback: updatedList,
+    });
+  }
+
+  return true;
 }
 
 

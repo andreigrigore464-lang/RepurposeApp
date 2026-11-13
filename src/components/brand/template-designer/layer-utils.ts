@@ -92,9 +92,20 @@ export function getFriendlyLabel(element: TemplateElement): FriendlyLabel {
   }
 
   if (element.type === "shape") {
+    const sType = (element as any).shape_type || "rect";
+    const nameMap: Record<string, string> = {
+      rect: "Rectangle Box",
+      circle: "Circle / Oval",
+      line: "Divider Line",
+      triangle: "Triangle Shape",
+      star: "Star Callout",
+      hexagon: "Hexagon Badge",
+      arrow: "Directional Arrow",
+      badge: "Ribbon Badge",
+    };
     return {
-      title: "Accent Container",
-      category: "Visual Shape",
+      title: nameMap[sType] || "Visual Shape",
+      category: "Geometric Shape",
       icon: "shape",
     };
   }
@@ -117,6 +128,79 @@ export function getFriendlyLabel(element: TemplateElement): FriendlyLabel {
     category: "Text Block",
     icon: "text",
   };
+}
+
+export function getShapePoints(
+  shapeType: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): number[] {
+  if (shapeType === "triangle") {
+    return [x + width / 2, y, x + width, y + height, x, y + height];
+  }
+  if (shapeType === "star") {
+    const cx = x + width / 2;
+    const cy = y + height / 2;
+    const outerR = Math.min(width, height) / 2;
+    const innerR = outerR * 0.45;
+    const pts: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const angle = (i * Math.PI) / 5 - Math.PI / 2;
+      const r = i % 2 === 0 ? outerR : innerR;
+      pts.push(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+    }
+    return pts;
+  }
+  if (shapeType === "hexagon") {
+    const cx = x + width / 2;
+    const cy = y + height / 2;
+    const rx = width / 2;
+    const ry = height / 2;
+    const pts: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      pts.push(cx + Math.cos(angle) * rx, cy + Math.sin(angle) * ry);
+    }
+    return pts;
+  }
+  if (shapeType === "arrow") {
+    const shaftH = height * 0.4;
+    const shaftY = y + (height - shaftH) / 2;
+    const headW = width * 0.4;
+    return [
+      x,
+      shaftY,
+      x + width - headW,
+      shaftY,
+      x + width - headW,
+      y,
+      x + width,
+      y + height / 2,
+      x + width - headW,
+      y + height,
+      x + width - headW,
+      shaftY + shaftH,
+      x,
+      shaftY + shaftH,
+    ];
+  }
+  if (shapeType === "badge") {
+    return [
+      x,
+      y,
+      x + width,
+      y,
+      x + width,
+      y + height,
+      x + width / 2,
+      y + height * 0.82,
+      x,
+      y + height,
+    ];
+  }
+  return [x, y, x + width, y + height];
 }
 
 export function getSampleText(textEl: TextElement): string {

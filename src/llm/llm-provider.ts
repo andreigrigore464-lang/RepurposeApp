@@ -53,7 +53,7 @@ export class GeminiLlmProvider implements LlmProvider {
       throw new Error("Missing GEMINI_API_KEY in environment");
     }
     this.client = new GoogleGenAI({ apiKey: key });
-    this.modelName = modelName || process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    this.modelName = modelName || process.env.GEMINI_MODEL || "gemini-3.5-flash";
   }
 
   async generateText(params: GenerateTextParams): Promise<string> {

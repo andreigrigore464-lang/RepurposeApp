@@ -7,8 +7,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabase } from "@/db/client";
-import { runArticlePipeline } from "@/pipeline/run-article-pipeline";
-import { getInboxArticlesForBrand } from "@/db/queries-inbox";
+import { dispatchArticlePipeline } from "@/jobs/dispatch-pipeline";
 import { getCurrentContext } from "@/lib/current-context";
 
 const RetrySchema = z.object({
@@ -27,18 +26,32 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(`[pipeline:retry] Triggering pipeline retry for article=${parsed.data.articleId}`);
-    const result = await runArticlePipeline(parsed.data.articleId);
-
-    // Fetch updated formats for this brand to return directly to the caller
     const { brandId } = await getCurrentContext();
-    const allArticles = await getInboxArticlesForBrand(brandId);
-    const updatedArticle = allArticles.find((a) => a.id === parsed.data.articleId);
+    const articleId = parsed.data.articleId;
+
+    console.log(`[pipeline:retry] Dispatching pipeline retry for article=${articleId}`);
+
+    // Reset error state and mark as processing
+    await supabase
+      .from("articles")
+      .update({
+        status: "processing",
+        error_message: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", articleId);
+
+    await dispatchArticlePipeline({
+      articleId,
+      brandId,
+      options: { force: true },
+    });
 
     return NextResponse.json({
       success: true,
-      result,
-      article: updatedArticle || null,
+      articleId,
+      status: "processing",
+      message: "Pipeline retry queued successfully.",
     });
   } catch (err: any) {
     console.error("[pipeline:retry] Error during pipeline execution:", err);

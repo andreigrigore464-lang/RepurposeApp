@@ -9,5 +9,7 @@ This directory defines background jobs orchestrated by Inngest.
 
 ## Files
 - `inngest-client.ts` — The Inngest application client instance.
-- Background job definitions (`poll-feeds-job.ts`, `generate-digest-job.ts`, etc.) will be added in their respective phases.
+- `article-pipeline-job.ts` — Unified Inngest background job running Digest -> Formats -> Adapt with per-brand and per-article concurrency limits.
+- `dispatch-pipeline.ts` — Dispatcher utility decoupling HTTP endpoints from pipeline execution with local sync fallback.
+- `poll-feeds-job.ts` — Scheduled/on-demand Inngest job for brand feed polling.
 

@@ -13,9 +13,11 @@ export const dynamic = "force-dynamic";
 
 export default async function FeedsPage() {
   const { brandId } = await getCurrentContext();
-  const feeds = await listFeedsForBrand(brandId);
-  const workflowSettings = await getWorkflowSettings(brandId);
-  const templates = await getUserTemplates(brandId);
+  const [feeds, workflowSettings, templates] = await Promise.all([
+    listFeedsForBrand(brandId),
+    getWorkflowSettings(brandId),
+    getUserTemplates(brandId),
+  ]);
 
   return (
     <FeedsManager

@@ -30,10 +30,12 @@ export function NavHeader(): React.JSX.Element {
       }
     }
     checkDueToday();
+    const interval = setInterval(checkDueToday, 60000);
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
-  }, [pathname]);
+  }, []);
 
   const navItems = [
     { label: "Drafts Inbox", href: "/inbox" },

@@ -10,7 +10,8 @@ Every strategy implements the `FramingStrategy` contract defined in `base.py`, c
 
 - `base.py`: Defines `Viewport` geometry (supporting template margins) and `FramingResult`.
 - `registry.py`: Declarative registry mapping `framing_mode` names to their strategies without hardcoding branches in the engine.
-- `smart_zoom.py`: Computer vision subject tracking (MediaPipe & OpenCV) with smooth dynamic centering that maximizes visible horizontal context based on template margins.
+- `smart_zoom.py`: Computer vision subject tracking (MediaPipe & OpenCV) with static focal centering per clip segment.
+- `dynamic_tracking.py`: Dynamic auto-reframing tracking human speakers, groups, animals, and salient objects across time with deadband stabilization and smooth S-curve camera panning.
 - `blurred_background.py`: Preserves the complete uncropped 16:9 video in the center with blurred ambient expansion on top and bottom.
 - `center_crop.py`: Fixed static vertical slice centered on the video.
 

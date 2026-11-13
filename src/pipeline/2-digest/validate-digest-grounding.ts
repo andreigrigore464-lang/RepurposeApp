@@ -24,6 +24,43 @@ function normalizeText(text: string): string {
     .toLowerCase();
 }
 
+function normalizePunctuation(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u201B']/g, "")
+    .replace(/[\u201C\u201D\u201F"]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function isVerbatimMatch(sentence: string, articleText: string): boolean {
+  // 1. Direct normalized character match
+  const normSentence = normalizeText(sentence);
+  const normArticle = normalizeText(articleText);
+  if (normArticle.includes(normSentence)) {
+    return true;
+  }
+
+  // 2. Strip leading/trailing quotation marks added around dialogue
+  const unquoted = normSentence.replace(/^["']+|["']+$/g, "").trim();
+  if (unquoted.length > 10 && normArticle.includes(unquoted)) {
+    return true;
+  }
+
+  // 3. Relaxed punctuation match (handles dialogue commas vs sentence-ending periods)
+  const punctStrippedSentence = normalizePunctuation(sentence);
+  const punctStrippedArticle = normalizePunctuation(articleText);
+  if (
+    punctStrippedSentence.length > 15 &&
+    punctStrippedArticle.includes(punctStrippedSentence)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function validateDigestGrounding(
   rawCandidate: unknown,
   articleText: string
@@ -56,8 +93,7 @@ export function validateDigestGrounding(
 
     // Check verbatim grounding provenance
     for (const sentence of item.source_sentences) {
-      const normalizedSentence = normalizeText(sentence);
-      if (!normalizedArticle.includes(normalizedSentence)) {
+      if (!isVerbatimMatch(sentence, articleText)) {
         errors.push(
           `Hallucination detected in item "${item.id}": Source sentence "${sentence}" does not exist verbatim in the source article text.`
         );

@@ -10,16 +10,20 @@ from framing.base import FramingStrategy
 from framing.blurred_background import BlurredBackgroundFraming
 from framing.center_crop import CenterCropFraming
 from framing.smart_zoom import SmartZoomFraming
+from framing.dynamic_tracking import DynamicTrackingFraming
 
 # Declarative registry of available framing strategies
 _FRAMING_REGISTRY: Dict[str, FramingStrategy] = {
     # Core identifiers
     "smart_zoom": SmartZoomFraming(),
+    "dynamic_tracking": DynamicTrackingFraming(),
     "blurred_background": BlurredBackgroundFraming(),
     "center_crop": CenterCropFraming(),
 
     # Template Designer aliases
     "ai_face_focus": SmartZoomFraming(),
+    "subject_tracking": DynamicTrackingFraming(),
+    "ai_tracking": DynamicTrackingFraming(),
     "blurred_stack": BlurredBackgroundFraming(),
     "cover": CenterCropFraming(),
     "crop": CenterCropFraming(),

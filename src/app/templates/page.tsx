@@ -13,8 +13,10 @@ export const dynamic = "force-dynamic";
 
 export default async function TemplatesPage() {
   const { brandId } = await getCurrentContext();
-  const brandKit = await getBrandKitByBrandId(brandId);
-  const templates = await getUserTemplates(brandId);
+  const [brandKit, templates] = await Promise.all([
+    getBrandKitByBrandId(brandId),
+    getUserTemplates(brandId),
+  ]);
 
   const defaultCardTemplate = getDefaultTemplate("card");
   const defaultCarouselTemplate = getDefaultTemplate("carousel");
